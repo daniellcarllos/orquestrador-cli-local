@@ -48,9 +48,11 @@ def plan(task: str, available: dict[str, str | None], agent: str | None = None) 
                 "agente escolhido pelo usuário" if agent else "primeiro agente disponível na ordem configurada", "somente leitura pretendida; isolamento específico da CLI não é garantia universal")
 
 
-def command(agent: str, executable: str, cwd: Path) -> list[str]:
+def command(agent: str, executable: str, cwd: Path, *, write: bool = False) -> list[str]:
     if agent == "codex":
-        return [executable, "exec", "--sandbox", "read-only", "--ephemeral", "--cd", str(cwd), "-"]
+        return [executable, "exec", "--sandbox", "workspace-write" if write else "read-only", "--ephemeral", "--cd", str(cwd), "-"]
+    if write:
+        raise ValueError("A preparação de alterações só está disponível para Codex.")
     if agent == "claude":
         return [executable, "--print", "--restricted", "--tools", "", "--no-session-persistence"]
     if agent == "gemini":

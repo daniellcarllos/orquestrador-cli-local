@@ -9,6 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
+from . import changes
 from .core import AGENTS, command, detect, execute, plan
 
 
@@ -26,6 +27,16 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--approve", action="store_true", help="Aprovar a execução e o eventual consumo de cota")
             sub.add_argument("--timeout", type=int, default=300)
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
+    prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária (Codex)")
+    prepare.add_argument("task")
+    prepare.add_argument("--cwd", type=Path, default=Path.cwd())
+    prepare.add_argument("--output", type=Path, required=True, help="Novo diretório para a proposta")
+    prepare.add_argument("--timeout", type=int, default=300)
+    prepare.add_argument("--approve", action="store_true", help="Autorizar execução em cópia e consumo de cota")
+    apply = commands.add_parser("apply", help="Aplicar patch revisado a repositório limpo")
+    apply.add_argument("proposal", type=Path)
+    apply.add_argument("--cwd", type=Path, default=Path.cwd())
+    apply.add_argument("--approve-sha256", required=True, help="Hash SHA-256 do patch revisado")
     return p
 
 
@@ -58,6 +69,41 @@ def main(argv=None) -> int:
         cwd = args.cwd.resolve(strict=True)
         if not cwd.is_dir():
             raise ValueError("O diretório de trabalho não é um diretório.")
+        if args.action == "apply":
+            changes.apply(cwd, args.proposal.resolve(strict=True), args.approve_sha256)
+            print("Patch aplicado. Revise o diff e execute os testes apropriados.")
+            return 0
+        if args.action == "prepare":
+            if not args.task.strip():
+                raise ValueError("A tarefa não pode estar vazia.")
+            print(json.dumps({"agent": "codex", "source": str(cwd), "proposal": str(args.output.resolve()),
+                              "scope": "cópia temporária de arquivos rastreados; proposta fora da origem",
+                              "effects": "execução da CLI e possível consumo de cota; isolamento depende do Codex"},
+                             ensure_ascii=False, indent=2), flush=True)
+            if not args.approve:
+                raise ValueError("Preparação não iniciada: a execução requer --approve.")
+            if not 1 <= args.timeout <= 3600:
+                raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
+            executable = detect().get("codex")
+            if not executable:
+                raise ValueError("Codex indisponível no PATH.")
+            output = args.output.resolve()
+            if output.exists() or output.is_relative_to(cwd):
+                raise ValueError("A proposta deve ser um diretório novo fora da origem.")
+            base = changes.validate_source(cwd)
+            with changes.temporary_copy() as tmp:
+                copy = Path(tmp)
+                changes.copy_tracked(cwd, copy)
+                if changes.validate_source(cwd) != base:
+                    raise ValueError("A origem mudou durante a cópia.")
+                changes.init_copy(copy)
+                result = execute(command("codex", executable, copy, write=True), args.task, copy, args.timeout)
+                if result.timed_out or result.exit_code != 0:
+                    raise ValueError("Execução falhou ou expirou; nenhuma proposta foi criada.")
+                metadata = changes.export_patch(copy, output, base)
+            print(json.dumps({"proposal": str(output), **metadata}, ensure_ascii=False, indent=2))
+            print("Revise changes.patch antes de autorizar sua aplicação.")
+            return 0
         available = detect()
         selected = plan(args.task, available, args.agent)
         print(json.dumps({**selected.as_dict(), "cwd": str(cwd)}, ensure_ascii=False, indent=2), flush=True)
