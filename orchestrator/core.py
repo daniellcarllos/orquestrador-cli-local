@@ -51,8 +51,11 @@ def plan(task: str, available: dict[str, str | None], agent: str | None = None) 
 def command(agent: str, executable: str, cwd: Path, *, write: bool = False) -> list[str]:
     if agent == "codex":
         return [executable, "exec", "--sandbox", "workspace-write" if write else "read-only", "--ephemeral", "--cd", str(cwd), "-"]
+    if agent == "claude" and write:
+        return [executable, "--print", "--restricted", "--strict-mcp-config", "--tools", "Read,Edit,Write,Glob,Grep",
+                "--permission-mode", "acceptEdits", "--permission-prompts", "none", "--no-session-persistence"]
     if write:
-        raise ValueError("A preparação de alterações só está disponível para Codex.")
+        raise ValueError("Este agente não suporta a preparação de alterações.")
     if agent == "claude":
         return [executable, "--print", "--restricted", "--tools", "", "--no-session-persistence"]
     if agent == "gemini":

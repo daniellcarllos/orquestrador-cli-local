@@ -89,6 +89,35 @@ class ProposalTests(unittest.TestCase):
             self.assertEqual(cli.main(args), 2)
             execute.assert_not_called()
 
+    def test_prepare_claude_uses_restricted_file_tools(self):
+        proposal = self.root / "claude-proposal"
+
+        def mock_execute(argv, task, cwd, timeout):
+            self.assertEqual(argv[0], "/fake-claude")
+            self.assertIn("--restricted", argv)
+            self.assertIn("--strict-mcp-config", argv)
+            self.assertIn("acceptEdits", argv)
+            self.assertIn("Read,Edit,Write,Glob,Grep", argv)
+            self.assertNotIn("Bash", " ".join(argv))
+            (cwd / "code.txt").write_text("claude change\n")
+            return core.Result(0, "", "", False, False)
+
+        args = ["prepare", "tarefa", "--agent", "claude", "--cwd", str(self.source),
+                "--output", str(proposal), "--approve"]
+        with patch("orchestrator.cli.detect", return_value={"claude": "/fake-claude"}), \
+             patch("orchestrator.cli.execute", side_effect=mock_execute):
+            self.assertEqual(cli.main(args), 0)
+        self.assertEqual((self.source / "code.txt").read_text(), "original\n")
+        self.assertIn("claude change", (proposal / "changes.patch").read_text())
+
+    def test_prepare_claude_missing_fails_without_agent_execution(self):
+        args = ["prepare", "tarefa", "--agent", "claude", "--cwd", str(self.source),
+                "--output", str(self.root / "proposal"), "--approve"]
+        with patch("orchestrator.cli.detect", return_value={"claude": None}), \
+             patch("orchestrator.cli.execute") as execute:
+            self.assertEqual(cli.main(args), 2)
+            execute.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

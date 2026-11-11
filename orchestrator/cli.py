@@ -27,8 +27,9 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--approve", action="store_true", help="Aprovar a execução e o eventual consumo de cota")
             sub.add_argument("--timeout", type=int, default=300)
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
-    prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária (Codex)")
+    prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária")
     prepare.add_argument("task")
+    prepare.add_argument("--agent", choices=("codex", "claude"), default="codex")
     prepare.add_argument("--cwd", type=Path, default=Path.cwd())
     prepare.add_argument("--output", type=Path, required=True, help="Novo diretório para a proposta")
     prepare.add_argument("--timeout", type=int, default=300)
@@ -76,17 +77,17 @@ def main(argv=None) -> int:
         if args.action == "prepare":
             if not args.task.strip():
                 raise ValueError("A tarefa não pode estar vazia.")
-            print(json.dumps({"agent": "codex", "source": str(cwd), "proposal": str(args.output.resolve()),
+            print(json.dumps({"agent": args.agent, "source": str(cwd), "proposal": str(args.output.resolve()),
                               "scope": "cópia temporária de arquivos rastreados; proposta fora da origem",
-                              "effects": "execução da CLI e possível consumo de cota; isolamento depende do Codex"},
+                              "effects": "execução da CLI e possível consumo de cota; isolamento depende da CLI"},
                              ensure_ascii=False, indent=2), flush=True)
             if not args.approve:
                 raise ValueError("Preparação não iniciada: a execução requer --approve.")
             if not 1 <= args.timeout <= 3600:
                 raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
-            executable = detect().get("codex")
+            executable = detect().get(args.agent)
             if not executable:
-                raise ValueError("Codex indisponível no PATH.")
+                raise ValueError(f"{args.agent} indisponível no PATH.")
             output = args.output.resolve()
             if output.exists() or output.is_relative_to(cwd):
                 raise ValueError("A proposta deve ser um diretório novo fora da origem.")
@@ -97,7 +98,7 @@ def main(argv=None) -> int:
                 if changes.validate_source(cwd) != base:
                     raise ValueError("A origem mudou durante a cópia.")
                 changes.init_copy(copy)
-                result = execute(command("codex", executable, copy, write=True), args.task, copy, args.timeout)
+                result = execute(command(args.agent, executable, copy, write=True), args.task, copy, args.timeout)
                 if result.timed_out or result.exit_code != 0:
                     raise ValueError("Execução falhou ou expirou; nenhuma proposta foi criada.")
                 metadata = changes.export_patch(copy, output, base)

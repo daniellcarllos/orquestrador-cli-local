@@ -7,6 +7,7 @@ python3 -m orchestrator doctor
 python3 -m orchestrator plan "Revisar este código" --cwd .
 python3 -m orchestrator run "Revisar este código" --agent codex --cwd . --mode single --approve
 python3 -m orchestrator prepare "Propor alteração" --cwd /caminho/projeto --output /caminho/proposta --approve
+python3 -m orchestrator prepare "Propor alteração" --agent claude --cwd /caminho/projeto --output /caminho/proposta-claude --approve
 # Revise /caminho/proposta/changes.patch e copie o hash exibido ao preparar:
 python3 -m orchestrator apply /caminho/proposta --cwd /caminho/projeto --approve-sha256 HASH_REVISADO
 python3 -m orchestrator history
@@ -17,7 +18,9 @@ python3 -m unittest discover -s tests -v
 
 ## Limites de segurança
 
-`run` é para **análise**: Codex é invocado em sandbox `read-only`; Claude em modo restrito com ferramentas internas desativadas; Gemini em modo `plan`. `prepare` utiliza somente Codex, com `workspace-write`, em uma cópia temporária de arquivos rastreados de um repositório limpo. A proposta deve ficar fora da origem. Arquivos `.env`, diretórios de credenciais comuns, dependências e links simbólicos são excluídos ou rejeitados, mas a filtragem não detecta todos os segredos. Não inclua conteúdo restrito no repositório enviado à CLI.
+`run` é para **análise**: Codex é invocado em sandbox `read-only`; Claude em modo restrito com ferramentas internas desativadas; Gemini em modo `plan`. `prepare` aceita Codex (padrão, com `workspace-write`) ou `--agent claude` em uma cópia temporária de arquivos rastreados de um repositório limpo. Para Claude, usa as flags observadas na versão 2.1.322: `--restricted`, `--strict-mcp-config`, ferramentas de arquivo, `--permission-mode acceptEdits`, `--permission-prompts none` e `--no-session-persistence`. Outras versões ou políticas gerenciadas podem se comportar de forma diferente. A proposta deve ficar fora da origem. Arquivos `.env`, diretórios de credenciais comuns, dependências e links simbólicos são excluídos ou rejeitados, mas a filtragem não detecta todos os segredos. Não inclua conteúdo restrito no repositório enviado à CLI.
+
+Para usar Claude, instale e autentique o Claude Code pelos meios oficiais e verifique `claude --version` e `claude auth status`. O orquestrador usa a sessão da própria CLI e não pede que se copie token ou chave. Consulte os [termos da Anthropic para autenticação e uso de Claude Code](https://code.claude.com/docs/en/legal-and-compliance): eles diferenciam uso pessoal do CLI e aplicações de terceiros que encaminham requisições via credenciais de assinatura. Confirme a elegibilidade do seu uso antes de automatizá-lo; a existência de uma sessão não comprova essa elegibilidade.
 
 Revise o patch inteiro, inclusive alterações destrutivas e conteúdo sensível, antes de passar seu SHA-256 a `apply`. A aplicação exige mesma revisão base, árvore limpa e hash exato. O hash detecta mudança após a revisão, mas não atesta segurança. Depois confira o diff e rode testes; o orquestrador não os executa automaticamente. Arquivos de proposta podem conter informações sensíveis: mantenha-os em local privado e remova-os conforme sua política de retenção.
 
