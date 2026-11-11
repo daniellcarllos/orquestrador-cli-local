@@ -9,18 +9,20 @@ import time
 import uuid
 from pathlib import Path
 
-from . import changes
-from .core import AGENTS, command, detect, execute, plan
+from . import capabilities, changes
+from .core import AGENTS, command, detect, execute, load_policy, plan
 
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="orchestrator", description="Orquestrador local em modo single")
     commands = p.add_subparsers(dest="action", required=True)
-    commands.add_parser("doctor", help="Detectar CLIs no PATH sem invocá-las")
+    doctor = commands.add_parser("doctor", help="Detectar CLIs e opcionalmente consultar suas ajudas")
+    doctor.add_argument("--probe", action="store_true", help="Executar comandos locais de versão e ajuda")
     for name in ("plan", "run"):
         sub = commands.add_parser(name)
         sub.add_argument("task")
         sub.add_argument("--agent", choices=AGENTS)
+        sub.add_argument("--policy", type=Path, help="Arquivo JSON de roteamento autorizado")
         sub.add_argument("--cwd", type=Path, default=Path.cwd())
         if name == "run":
             sub.add_argument("--mode", choices=("single",), default="single")
@@ -29,7 +31,8 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
     prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária")
     prepare.add_argument("task")
-    prepare.add_argument("--agent", choices=("codex", "claude"), default="codex")
+    prepare.add_argument("--agent", choices=("codex", "claude"))
+    prepare.add_argument("--policy", type=Path, help="Arquivo JSON de roteamento autorizado")
     prepare.add_argument("--cwd", type=Path, default=Path.cwd())
     prepare.add_argument("--output", type=Path, required=True, help="Novo diretório para a proposta")
     prepare.add_argument("--timeout", type=int, default=300)
@@ -57,9 +60,11 @@ def journal(entry: dict) -> None:
 def main(argv=None) -> int:
     args = parser().parse_args(argv)
     if args.action == "doctor":
+        found = detect()
+        inventory = {k: capabilities.inspect(k, v, Path.cwd()) if v and args.probe else {"available": bool(v)} for k, v in found.items()}
         print(json.dumps({"platform": platform.system(), "python": platform.python_version(),
-                          "agents": {k: bool(v) for k, v in detect().items()},
-                          "note": "Disponibilidade no PATH; versão e autenticação não verificadas."}, ensure_ascii=False, indent=2))
+                          "agents": inventory,
+                          "note": "Autenticação, elegibilidade de modelos e consumo de tokens não foram verificados."}, ensure_ascii=False, indent=2))
         return 0
     if args.action == "history":
         path = history_path()
@@ -77,7 +82,10 @@ def main(argv=None) -> int:
         if args.action == "prepare":
             if not args.task.strip():
                 raise ValueError("A tarefa não pode estar vazia.")
-            print(json.dumps({"agent": args.agent, "source": str(cwd), "proposal": str(args.output.resolve()),
+            available = detect()
+            available["gemini"] = None  # escrita ainda não suportada
+            selected = plan(args.task, available, args.agent, load_policy(args.policy) if args.policy else None)
+            print(json.dumps({**selected.as_dict(), "source": str(cwd), "proposal": str(args.output.resolve()),
                               "scope": "cópia temporária de arquivos rastreados; proposta fora da origem",
                               "effects": "execução da CLI e possível consumo de cota; isolamento depende da CLI"},
                              ensure_ascii=False, indent=2), flush=True)
@@ -85,9 +93,9 @@ def main(argv=None) -> int:
                 raise ValueError("Preparação não iniciada: a execução requer --approve.")
             if not 1 <= args.timeout <= 3600:
                 raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
-            executable = detect().get(args.agent)
-            if not executable:
-                raise ValueError(f"{args.agent} indisponível no PATH.")
+            executable = available[selected.agent]
+            if selected.model and capabilities.inspect(selected.agent, executable, cwd)["model_flag"] is not True:
+                raise ValueError("Seleção de modelo não confirmada pela ajuda da CLI; execução bloqueada.")
             output = args.output.resolve()
             if output.exists() or output.is_relative_to(cwd):
                 raise ValueError("A proposta deve ser um diretório novo fora da origem.")
@@ -98,7 +106,7 @@ def main(argv=None) -> int:
                 if changes.validate_source(cwd) != base:
                     raise ValueError("A origem mudou durante a cópia.")
                 changes.init_copy(copy)
-                result = execute(command(args.agent, executable, copy, write=True), args.task, copy, args.timeout)
+                result = execute(command(selected.agent, executable, copy, write=True, model=selected.model), args.task, copy, args.timeout)
                 if result.timed_out or result.exit_code != 0:
                     raise ValueError("Execução falhou ou expirou; nenhuma proposta foi criada.")
                 metadata = changes.export_patch(copy, output, base)
@@ -106,7 +114,7 @@ def main(argv=None) -> int:
             print("Revise changes.patch antes de autorizar sua aplicação.")
             return 0
         available = detect()
-        selected = plan(args.task, available, args.agent)
+        selected = plan(args.task, available, args.agent, load_policy(args.policy) if args.policy else None)
         print(json.dumps({**selected.as_dict(), "cwd": str(cwd)}, ensure_ascii=False, indent=2), flush=True)
         if args.action == "plan":
             return 0
@@ -115,11 +123,13 @@ def main(argv=None) -> int:
             return 2
         if args.timeout < 1 or args.timeout > 3600:
             raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
+        if selected.model and capabilities.inspect(selected.agent, available[selected.agent], cwd)["model_flag"] is not True:
+            raise ValueError("Seleção de modelo não confirmada pela ajuda da CLI; execução bloqueada.")
         run_id = str(uuid.uuid4())
         start = time.monotonic()
-        result = execute(command(selected.agent, available[selected.agent], cwd), args.task, cwd, args.timeout)
+        result = execute(command(selected.agent, available[selected.agent], cwd, model=selected.model), args.task, cwd, args.timeout)
         journal({"id": run_id, "agent": selected.agent, "policy_version": selected.policy_version,
-                 "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
+                 "model": selected.model, "usage": None, "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
                  "timed_out": result.timed_out, "truncated": result.truncated})
         print(result.stdout, end="")
         if result.stderr:

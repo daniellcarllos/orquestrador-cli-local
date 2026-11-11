@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import shutil
 import signal
@@ -13,7 +14,7 @@ from pathlib import Path
 
 AGENTS = ("codex", "claude", "gemini")
 OUTPUT_LIMIT = 1024 * 1024
-POLICY_VERSION = "1"
+POLICY_VERSION = "2"
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,10 @@ class Plan:
     policy_version: str
     rationale: str
     scope: str
+    model: str | None = None
+    task_type: str = "geral"
+    routing_mode: str = "compatibilidade"
+    usage: str = "desconhecido"
 
     def as_dict(self) -> dict:
         return asdict(self)
@@ -33,33 +38,65 @@ def detect() -> dict[str, str | None]:
     return {agent: shutil.which(agent) for agent in AGENTS}
 
 
-def plan(task: str, available: dict[str, str | None], agent: str | None = None) -> Plan:
+def load_policy(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Não foi possível ler a política: {exc}") from exc
+    if not isinstance(data, dict) or set(data) != {"version", "tiers"} or not isinstance(data["version"], str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,40}", data["version"]):
+        raise ValueError("Política inválida: esperados version e tiers.")
+    tiers = data["tiers"]
+    if not isinstance(tiers, dict) or set(tiers) != {"simples", "média", "alta"}:
+        raise ValueError("Política deve definir os níveis simples, média e alta.")
+    for candidates in tiers.values():
+        if not isinstance(candidates, list) or not candidates:
+            raise ValueError("Cada nível deve ter pelo menos um candidato autorizado.")
+        for candidate in candidates:
+            if not isinstance(candidate, dict) or set(candidate) != {"agent", "model"} or candidate["agent"] not in AGENTS:
+                raise ValueError("Candidato inválido: informe agent e model.")
+            model = candidate["model"]
+            if model is not None and (not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}", model)):
+                raise ValueError("Identificador de modelo inválido.")
+    return data
+
+
+def classify(task: str) -> tuple[str, str, str]:
+    text = task.casefold()
+    high = any(x in text for x in ("segurança", "security", "deploy", "produção", "production", "credencial", "secret", "excluir", "delete", "arquitetura", "architecture"))
+    medium = any(x in text for x in ("código", "codigo", "code", "teste", "test", "analis", "review", "revis", "implementar", "implement"))
+    category = "código" if medium else "segurança" if high else "geral"
+    return ("alta" if high else "média" if medium or len(task) > 2000 else "simples", "alto" if high else "baixo", category)
+
+
+def plan(task: str, available: dict[str, str | None], agent: str | None = None, policy: dict | None = None) -> Plan:
     if not task.strip():
         raise ValueError("A tarefa não pode estar vazia.")
     if agent and (agent not in AGENTS or not available.get(agent)):
         raise ValueError("Agente solicitado indisponível.")
-    selected = agent or next((name for name in AGENTS if available.get(name)), None)
+    complexity, risk, category = classify(task)
+    candidates = policy["tiers"][complexity] if policy else [{"agent": name, "model": None} for name in AGENTS]
+    selected = next((item for item in candidates if (agent is None or item["agent"] == agent) and available.get(item["agent"])), None)
     if not selected:
-        raise ValueError("Nenhuma CLI elegível encontrada no PATH.")
-    text = task.casefold()
-    high = any(x in text for x in ("segurança", "security", "deploy", "produção", "production", "credencial", "secret", "excluir", "delete"))
-    medium = any(x in text for x in ("código", "codigo", "code", "teste", "test", "analis", "review", "revis"))
-    return Plan(selected, "alta" if high else "média" if medium else "simples", "alto" if high else "baixo", POLICY_VERSION,
-                "agente escolhido pelo usuário" if agent else "primeiro agente disponível na ordem configurada", "somente leitura pretendida; isolamento específico da CLI não é garantia universal")
+        raise ValueError("Nenhum agente autorizado pela política está disponível para este nível.")
+    reason = "primeiro candidato disponível no nível da política" if policy else "ordem padrão de compatibilidade; sem otimização comprovada"
+    return Plan(selected["agent"], complexity, risk, policy["version"] if policy else POLICY_VERSION,
+                reason, "isolamento e política de dados dependem da CLI e do ambiente", selected["model"], category,
+                "configurada" if policy else "compatibilidade")
 
 
-def command(agent: str, executable: str, cwd: Path, *, write: bool = False) -> list[str]:
+def command(agent: str, executable: str, cwd: Path, *, write: bool = False, model: str | None = None) -> list[str]:
+    model_args = ["--model", model] if model else []
     if agent == "codex":
-        return [executable, "exec", "--sandbox", "workspace-write" if write else "read-only", "--ephemeral", "--cd", str(cwd), "-"]
+        return [executable, "exec", "--sandbox", "workspace-write" if write else "read-only", "--ephemeral", "--cd", str(cwd), *model_args, "-"]
     if agent == "claude" and write:
         return [executable, "--print", "--restricted", "--strict-mcp-config", "--tools", "Read,Edit,Write,Glob,Grep",
-                "--permission-mode", "acceptEdits", "--permission-prompts", "none", "--no-session-persistence"]
+                "--permission-mode", "acceptEdits", "--permission-prompts", "none", "--no-session-persistence", *model_args]
     if write:
         raise ValueError("Este agente não suporta a preparação de alterações.")
     if agent == "claude":
-        return [executable, "--print", "--restricted", "--tools", "", "--no-session-persistence"]
+        return [executable, "--print", "--restricted", "--tools", "", "--no-session-persistence", *model_args]
     if agent == "gemini":
-        return [executable, "--prompt", "", "--approval-mode", "plan"]
+        return [executable, "--prompt", "", "--approval-mode", "plan", *model_args]
     raise ValueError("Agente desconhecido.")
 
 

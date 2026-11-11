@@ -1,0 +1,8 @@
+{
+  "version": "exemplo-1",
+  "tiers": {
+    "simples": [{"agent": "gemini", "model": null}],
+    "média": [{"agent": "codex", "model": null}],
+    "alta": [{"agent": "claude", "model": null}]
+  }
+}
