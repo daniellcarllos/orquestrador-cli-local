@@ -9,6 +9,9 @@ description = "Orquestração local de agentes CLI em modo single"
 requires-python = ">=3.10"
 dependencies = []
 
+[project.optional-dependencies]
+mcp = ["mcp>=2.3,<3"]
+
 [project.scripts]
 orchestrator = "orchestrator.cli:main"
 

@@ -31,6 +31,27 @@ Para experimentar o direcionamento dentro do Claude Code, `policy.claude.example
 
 Tokens, custo, economia e qualidade permanecem **desconhecidos**. O roteador não reduz automaticamente o contexto nem prova que um modelo seja o melhor; confirme a escolha com avaliações e medições reais antes de tomar decisões baseadas em economia.
 
+## Revisão com prompt existente no MCP
+
+A integração MCP é opcional e usa o SDK MCP Python, sem SDK de provedor de modelos. Para habilitá-la, instale a dependência opcional em um ambiente autorizado (`python3 -m pip install '.[mcp]'`), ou use um ambiente Python existente que contenha `mcp` 2.3.x. As outras funcionalidades continuam sem dependências de runtime. A instalação não é executada automaticamente.
+
+Configure `MCP_PROMPTS_URL` com a URL HTTPS do endpoint MCP e `MCP_PROMPTS_TOKEN` no ambiente por um mecanismo seguro. A URL não aceita usuário, senha, token na query ou fragmento; a chave é enviada no cabeçalho de autenticação ao servidor, e não ao subprocesso da CLI. Não armazene credenciais neste repositório ou no histórico do terminal.
+
+Escolha explicitamente um prompt de revisão, um diff ou arquivo UTF-8 autorizado (até 200 KB), grupo e projeto esperados. Substitua os valores de exemplo pelos da sua biblioteca:
+
+```sh
+python3 -m orchestrator run "Revisar o diff .NET/C#" \
+  --policy policy.claude.example.json \
+  --mcp-prompt-id ID_DO_REVISOR \
+  --mcp-project "PROJETO" --mcp-group "GRUPO" \
+  --input-file /caminho/privado/revisao.diff \
+  --approve-mcp --approve
+```
+
+`--approve-mcp` autoriza a consulta remota dos IDs escolhidos e `--approve` autoriza executar a CLI e enviar a ela a tarefa, o diff e os documentos recuperados. Para incluir contexto adicional, acrescente `--mcp-context-id ID_DO_CONTEXTO` uma vez por documento; o primeiro ID é a referência de revisão e os demais são dados de contexto potencialmente desatualizados. São aceitos até cinco documentos no total, com limites de tamanho, sem busca automática, indexação ou RAG. A revisão é exibida no terminal; não cria comentário em PR nem altera arquivos automaticamente. Confira a resposta antes de compartilhá-la.
+
+Cada resposta é conferida localmente contra o ID, grupo e projeto fornecidos; divergência interrompe a execução. Esse filtro ocorre **após** o servidor devolver os dados e não é controle de acesso: o servidor MCP precisa aplicar autorização adequada antes da consulta. Confirme que o provedor/modelo, a assinatura e as políticas da organização permitem receber o diff e os documentos. Os textos não são armazenados no histórico do orquestrador, mas são enviados à CLI escolhida e podem ser mantidos ou processados conforme as políticas dela.
+
 ## Limites de segurança
 
 `run` é para **análise**: Codex é invocado em sandbox `read-only`; Claude em modo restrito com ferramentas internas desativadas; Gemini em modo `plan`. `prepare` aceita Codex (padrão, com `workspace-write`) ou `--agent claude` em uma cópia temporária de arquivos rastreados de um repositório limpo. Para Claude, usa as flags observadas na versão 2.1.322: `--restricted`, `--strict-mcp-config`, ferramentas de arquivo, `--permission-mode acceptEdits`, `--permission-prompts none` e `--no-session-persistence`. Outras versões ou políticas gerenciadas podem se comportar de forma diferente. A proposta deve ficar fora da origem. Arquivos `.env`, diretórios de credenciais comuns, dependências e links simbólicos são excluídos ou rejeitados, mas a filtragem não detecta todos os segredos. Não inclua conteúdo restrito no repositório enviado à CLI.

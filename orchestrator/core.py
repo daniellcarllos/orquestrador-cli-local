@@ -120,8 +120,9 @@ class Result:
 def execute(argv: list[str], task: str, cwd: Path, timeout: int) -> Result:
     if timeout < 1 or timeout > 3600:
         raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
+    env = {k: v for k, v in os.environ.items() if k != "MCP_PROMPTS_TOKEN"}
     process = subprocess.Popen(argv, cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               start_new_session=True, shell=False)
+                               start_new_session=True, shell=False, env=env)
     outputs: list[bytearray] = [bytearray(), bytearray()]
     truncated = [False]
 

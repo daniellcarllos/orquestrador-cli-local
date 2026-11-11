@@ -9,7 +9,7 @@ import time
 import uuid
 from pathlib import Path
 
-from . import capabilities, changes
+from . import capabilities, changes, mcp_prompts
 from .core import AGENTS, command, detect, execute, load_policy, plan
 
 
@@ -28,6 +28,12 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--mode", choices=("single",), default="single")
             sub.add_argument("--approve", action="store_true", help="Aprovar a execução e o eventual consumo de cota")
             sub.add_argument("--timeout", type=int, default=300)
+            sub.add_argument("--mcp-prompt-id", help="ID da referência de revisão no MCP")
+            sub.add_argument("--mcp-context-id", action="append", default=[], help="ID de contexto adicional (opcional)")
+            sub.add_argument("--mcp-project", help="Projeto esperado para todos os documentos")
+            sub.add_argument("--mcp-group", help="Grupo esperado para todos os documentos")
+            sub.add_argument("--approve-mcp", action="store_true", help="Autorizar leitura dos IDs informados no MCP")
+            sub.add_argument("--input-file", type=Path, help="Diff ou texto local autorizado para revisão")
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
     prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária")
     prepare.add_argument("task")
@@ -115,7 +121,10 @@ def main(argv=None) -> int:
             return 0
         available = detect()
         selected = plan(args.task, available, args.agent, load_policy(args.policy) if args.policy else None)
-        print(json.dumps({**selected.as_dict(), "cwd": str(cwd)}, ensure_ascii=False, indent=2), flush=True)
+        mcp_ids = ([args.mcp_prompt_id, *args.mcp_context_id] if args.action == "run" and args.mcp_prompt_id else [])
+        if args.action == "run" and (args.mcp_context_id or args.mcp_project or args.mcp_group or args.approve_mcp or args.input_file) and not args.mcp_prompt_id:
+            raise ValueError("Para revisão MCP, informe --mcp-prompt-id.")
+        print(json.dumps({**selected.as_dict(), "cwd": str(cwd), **({"mcp_ids": mcp_ids} if mcp_ids else {})}, ensure_ascii=False, indent=2), flush=True)
         if args.action == "plan":
             return 0
         if not args.approve:
@@ -125,9 +134,24 @@ def main(argv=None) -> int:
             raise ValueError("Timeout deve estar entre 1 e 3600 segundos.")
         if selected.model and capabilities.inspect(selected.agent, available[selected.agent], cwd)["model_flag"] is not True:
             raise ValueError("Seleção de modelo não confirmada pela ajuda da CLI; execução bloqueada.")
+        task = args.task
+        if mcp_ids:
+            if not args.approve_mcp or not args.mcp_project or not args.mcp_group:
+                raise ValueError("A leitura MCP exige --approve-mcp, --mcp-project e --mcp-group.")
+            if not args.input_file:
+                raise ValueError("A revisão exige --input-file com diff ou conteúdo autorizado.")
+            source = args.input_file.resolve(strict=True)
+            if not source.is_file() or source.stat().st_size > 200_000:
+                raise ValueError("O arquivo de revisão deve ser um arquivo de até 200 KB.")
+            try:
+                review_input = source.read_text(encoding="utf-8")
+            except UnicodeError as exc:
+                raise ValueError("O arquivo de revisão deve usar UTF-8.") from exc
+            docs = mcp_prompts.fetch(mcp_ids, args.mcp_project, args.mcp_group)
+            task = mcp_prompts.build_review_task(args.task, review_input, docs)
         run_id = str(uuid.uuid4())
         start = time.monotonic()
-        result = execute(command(selected.agent, available[selected.agent], cwd, model=selected.model), args.task, cwd, args.timeout)
+        result = execute(command(selected.agent, available[selected.agent], cwd, model=selected.model), task, cwd, args.timeout)
         journal({"id": run_id, "agent": selected.agent, "policy_version": selected.policy_version,
                  "model": selected.model, "usage": None, "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
                  "timed_out": result.timed_out, "truncated": result.truncated})
