@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "orquestrador-cli-local"
+version = "0.1.0"
+description = "Orquestração local de agentes CLI em modo single"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+orchestrator = "orchestrator.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["orchestrator*"]
