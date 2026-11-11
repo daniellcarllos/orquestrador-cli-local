@@ -7,6 +7,7 @@ python3 -m orchestrator doctor
 python3 -m orchestrator doctor --probe
 python3 -m orchestrator plan "Revisar este código" --cwd .
 python3 -m orchestrator plan "Revisar este código" --policy policy.example.json --cwd .
+python3 -m orchestrator plan "Planejar uma funcionalidade" --policy policy.claude.example.json --cwd .
 python3 -m orchestrator run "Revisar este código" --agent codex --cwd . --mode single --approve
 python3 -m orchestrator prepare "Propor alteração" --cwd /caminho/projeto --output /caminho/proposta --approve
 python3 -m orchestrator prepare "Propor alteração" --agent claude --cwd /caminho/projeto --output /caminho/proposta-claude --approve
@@ -25,6 +26,8 @@ python3 -m unittest discover -s tests -v
 `--policy arquivo.json` ativa uma política explícita para `plan`, `run` ou `prepare`. Veja `policy.example.json`: é um exemplo de estrutura, não uma recomendação de custo, segurança ou escolha de modelo. Configure em cada nível (`simples`, `média`, `alta`) uma lista ordenada de agentes autorizados e seus identificadores de modelo; `null` usa o padrão da CLI. Escolha apenas modelos conhecidos, disponíveis, autorizados para seus dados e permitidos pela sua assinatura. O orquestrador não descobre nem valida a lista de modelos da conta. Se indicar um modelo, a execução confirma antes que a ajuda da CLI anuncia `--model`; falha se não puder confirmar, mas isso não garante que o identificador seja aceito.
 
 O classificador usa regras simples e auditáveis por palavras e tamanho; não mede inteligência ou qualidade e pode errar. O roteador usa o primeiro candidato disponível no PATH no nível classificado; não verifica autenticação nem troca automaticamente após uma execução falhar. Uma escolha `--agent` deve constar no nível autorizado, caso contrário falha. Se nenhum candidato estiver disponível, falha de forma segura. Em `prepare`, Gemini não é elegível para escrita: inclua Codex ou Claude no nível correspondente. Sem política, mantém a ordem de compatibilidade anterior e não afirma otimização. `plan` apenas descreve a seleção; `run` e `prepare` continuam exigindo aprovação da execução.
+
+Para experimentar o direcionamento dentro do Claude Code, `policy.claude.example.json` associa tarefas simples a `haiku`, implementação intermediária a `sonnet`, e planejamento ou conferência a `opus`. Por exemplo, `formatar um texto` seleciona Haiku; `implementar código`, Sonnet; `planejar arquitetura` ou `revisar código`, Opus. Cada solicitação continua sendo uma única chamada: esses papéis não criam uma cadeia de vários agentes. Os aliases são exemplos sujeitos à disponibilidade da CLI, da conta e às condições de uso; a política é opcional e não é ativada automaticamente. Revise-a antes de usar e compare os resultados com uma referência de modelo único.
 
 Tokens, custo, economia e qualidade permanecem **desconhecidos**. O roteador não reduz automaticamente o contexto nem prova que um modelo seja o melhor; confirme a escolha com avaliações e medições reais antes de tomar decisões baseadas em economia.
 

@@ -1,0 +1,8 @@
+{
+  "version": "claude-papeis-exemplo-1",
+  "tiers": {
+    "simples": [{"agent": "claude", "model": "haiku"}],
+    "média": [{"agent": "claude", "model": "sonnet"}],
+    "alta": [{"agent": "claude", "model": "opus"}]
+  }
+}

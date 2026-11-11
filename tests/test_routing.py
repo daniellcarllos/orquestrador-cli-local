@@ -18,10 +18,20 @@ class RoutingTests(unittest.TestCase):
 
     def test_routes_complexity_to_policy_agent_and_model(self):
         for task, agent, model in [("formatar texto", "gemini", "fast-model"),
-                                   ("revisar código", "codex", "code-model"),
+                                   ("implementar código", "codex", "code-model"),
                                    ("revisar segurança", "claude", "strong-model")]:
             result = core.plan(task, self.available, policy=self.policy)
             self.assertEqual((result.agent, result.model, result.usage), (agent, model, "desconhecido"))
+
+    def test_claude_example_selects_light_for_simple_and_strong_for_review_and_planning(self):
+        policy = core.load_policy(Path(__file__).resolve().parent.parent / "policy.claude.example.json")
+        for task, expected_model, category in [("formatar um texto", "haiku", "geral"),
+                                                ("implementar código", "sonnet", "código"),
+                                                ("planejar arquitetura", "opus", "planejamento"),
+                                                ("conferir implementação", "opus", "conferência"),
+                                                ("revisar código", "opus", "conferência")]:
+            result = core.plan(task, self.available, policy=policy)
+            self.assertEqual((result.agent, result.model, result.task_type), ("claude", expected_model, category))
 
     def test_fail_closed_when_policy_unavailable_or_override_not_authorized(self):
         with self.assertRaises(ValueError):

@@ -62,10 +62,12 @@ def load_policy(path: Path) -> dict:
 
 def classify(task: str) -> tuple[str, str, str]:
     text = task.casefold()
-    high = any(x in text for x in ("segurança", "security", "deploy", "produção", "production", "credencial", "secret", "excluir", "delete", "arquitetura", "architecture"))
-    medium = any(x in text for x in ("código", "codigo", "code", "teste", "test", "analis", "review", "revis", "implementar", "implement"))
-    category = "código" if medium else "segurança" if high else "geral"
-    return ("alta" if high else "média" if medium or len(task) > 2000 else "simples", "alto" if high else "baixo", category)
+    risky = any(x in text for x in ("segurança", "security", "deploy", "produção", "production", "credencial", "secret", "excluir", "delete"))
+    planning = any(x in text for x in ("planej", "planea", "planeamento", "plano", "planning", "architecture", "arquitetura"))
+    review = any(x in text for x in ("review", "revis", "confer", "verific", "validar", "validação", "validation"))
+    medium = any(x in text for x in ("código", "codigo", "code", "teste", "test", "analis", "implementar", "implement"))
+    category = "segurança" if risky else "planejamento" if planning else "conferência" if review else "código" if medium else "geral"
+    return ("alta" if risky or planning or review else "média" if medium or len(task) > 2000 else "simples", "alto" if risky else "baixo", category)
 
 
 def plan(task: str, available: dict[str, str | None], agent: str | None = None, policy: dict | None = None) -> Plan:
