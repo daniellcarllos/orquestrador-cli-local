@@ -16,7 +16,7 @@ class MCPPromptError(ValueError):
     pass
 
 
-def validate_settings(url: str, token: str, ids: list[str], project: str, group: str) -> None:
+def validate_settings(url: str, token: str, ids: list[str], project: str, group: str, *, allow_empty: bool = False) -> None:
     parsed = urlsplit(url)
     if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise ValueError("MCP_PROMPTS_URL deve ser uma URL HTTPS sem credenciais, parâmetros ou fragmento.")
@@ -24,11 +24,11 @@ def validate_settings(url: str, token: str, ids: list[str], project: str, group:
         raise ValueError("Configure MCP_PROMPTS_TOKEN no ambiente, sem revelar seu valor.")
     if not project.strip() or not group.strip():
         raise ValueError("Informe explicitamente o projeto e o grupo MCP esperados.")
-    if not ids or len(ids) > 5 or len(set(ids)) != len(ids) or any(not re.fullmatch(r"[a-f0-9]{10}", value) for value in ids):
+    if (not ids and not allow_empty) or len(ids) > 5 or len(set(ids)) != len(ids) or any(not re.fullmatch(r"[a-f0-9]{10}", value) for value in ids):
         raise ValueError("Informe até cinco IDs MCP distintos, com dez caracteres hexadecimais.")
 
 
-def parse_result(result, expected_id: str, project: str, group: str) -> dict:
+def parse_object(result) -> dict:
     if result.is_error:
         raise MCPPromptError("A leitura MCP retornou erro.")
     data = result.structured_content
@@ -40,13 +40,73 @@ def parse_result(result, expected_id: str, project: str, group: str) -> dict:
             data = json.loads(parts[0])
         except (json.JSONDecodeError, TypeError) as exc:
             raise MCPPromptError("Resposta MCP não contém um objeto válido.") from exc
-    if not isinstance(data, dict) or data.get("id") != expected_id or data.get("projeto") != project or data.get("grupo") != group:
+    if not isinstance(data, dict):
+        raise MCPPromptError("Resposta MCP não contém um objeto válido.")
+    return data
+
+
+def parse_result(result, expected_id: str, project: str, group: str) -> dict:
+    data = parse_object(result)
+    if data.get("id") != expected_id or data.get("projeto") != project or data.get("grupo") != group:
         raise MCPPromptError("O documento MCP não corresponde ao ID, projeto e grupo informados.")
     content = data.get("conteudo")
     if not isinstance(content, str) or not content.strip() or len(content.encode("utf-8")) > MAX_TEXT:
         raise MCPPromptError("Conteúdo MCP ausente ou acima do limite.")
     return {"id": expected_id, "title": str(data.get("titulo", ""))[:200],
-            "updated_at": data.get("atualizado_em"), "version": data.get("versao"), "content": content}
+            "updated_at": data.get("atualizado_em"), "version": data.get("versao"),
+            "tags": data.get("tags") if isinstance(data.get("tags"), list) else [], "content": content}
+
+
+def parse_listing(result, project: str, group: str, tag: str | None) -> list[dict]:
+    data = parse_object(result)
+    entries = data.get("prompts")
+    if not isinstance(entries, list) or len(entries) > 10000:
+        raise MCPPromptError("Listagem MCP inválida ou extensa demais.")
+    matches = []
+    seen = set()
+    for item in entries:
+        if not isinstance(item, dict) or item.get("projeto") != project or item.get("grupo") != group:
+            continue
+        prompt_id = item.get("id")
+        tags = item.get("tags")
+        if not isinstance(prompt_id, str) or not re.fullmatch(r"[a-f0-9]{10}", prompt_id) or prompt_id in seen or not isinstance(tags, list) or not all(isinstance(x, str) for x in tags):
+            continue
+        if tag and not any(t.casefold() == tag.casefold() for t in tags):
+            continue
+        seen.add(prompt_id)
+        matches.append({"id": prompt_id, "title": str(item.get("titulo", ""))[:200], "tags": tags,
+                        "updated_at": item.get("atualizado_em"), "version": item.get("versao")})
+    return matches
+
+
+async def _list(url: str, token: str, project: str, group: str, tag: str | None) -> list[dict]:
+    try:
+        import httpx2
+        from mcp import Client
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError as exc:
+        raise MCPPromptError("Integração MCP opcional indisponível: instale a dependência mcp do projeto em ambiente autorizado.") from exc
+    arguments = {"projeto": project, "grupo": group}
+    if tag:
+        arguments["tag"] = tag
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + token}, timeout=20, follow_redirects=False) as http:
+        async with Client(streamable_http_client(url, http_client=http), raise_exceptions=True) as client:
+            result = await client.call_tool("listar_prompts", arguments, read_timeout_seconds=20)
+            return parse_listing(result, project, group, tag)
+
+
+def list_metadata(project: str, group: str, tag: str | None = None) -> list[dict]:
+    url = os.environ.get("MCP_PROMPTS_URL", "")
+    token = os.environ.get("MCP_PROMPTS_TOKEN", "")
+    validate_settings(url, token, [], project, group, allow_empty=True)
+    if tag is not None and (not tag.strip() or len(tag) > 100):
+        raise ValueError("Tag deve ter entre 1 e 100 caracteres.")
+    try:
+        return asyncio.run(asyncio.wait_for(_list(url, token, project, group, tag), timeout=60))
+    except MCPPromptError:
+        raise
+    except Exception as exc:
+        raise ValueError("Não foi possível consultar o MCP. Verifique conexão, autenticação e permissões.") from exc
 
 
 async def _fetch(url: str, token: str, ids: list[str], project: str, group: str) -> list[dict]:

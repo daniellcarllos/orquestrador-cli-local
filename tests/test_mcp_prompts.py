@@ -83,6 +83,43 @@ class MCPPromptTests(unittest.TestCase):
 
         self.assertEqual(asyncio.run(call())["content"], "guidance")
 
+    def test_list_filters_project_group_and_exact_tag(self):
+        entries = [
+            {"id": "aaaaaaaaaa", "titulo": "ok", "grupo": "G", "projeto": "P", "tags": ["dotnet"]},
+            {"id": "bbbbbbbbbb", "titulo": "other group", "grupo": "X", "projeto": "P", "tags": ["dotnet"]},
+            {"id": "cccccccccc", "titulo": "other tag", "grupo": "G", "projeto": "P", "tags": ["other"]},
+        ]
+        result = SimpleNamespace(is_error=False, structured_content={"prompts": entries}, content=[])
+        selected = mcp_prompts.parse_listing(result, "P", "G", "dotnet")
+        self.assertEqual([x["id"] for x in selected], ["aaaaaaaaaa"])
+
+    def test_list_command_requires_approval(self):
+        with patch("orchestrator.mcp_prompts.list_metadata") as list_metadata:
+            self.assertEqual(cli.main(["mcp-list", "--project", "P", "--group", "G"]), 2)
+            list_metadata.assert_not_called()
+
+    def test_tag_selection_uses_limit_and_checks_tag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            file = Path(tmp) / "diff.txt"
+            file.write_text("diff", encoding="utf-8")
+            candidates = [{"id": "aaaaaaaaaa", "title": "context 1"}, {"id": "bbbbbbbbbb", "title": "context 2"}]
+            docs = [{"id": self.id, "content": "review", "tags": []},
+                    {"id": "aaaaaaaaaa", "content": "context 1", "tags": ["dotnet"]}]
+            args = ["run", "review", "--mcp-prompt-id", self.id, "--mcp-project", "P", "--mcp-group", "G",
+                    "--mcp-context-tag", "dotnet", "--mcp-max-contexts", "1", "--input-file", str(file), "--approve", "--approve-mcp"]
+            with patch("orchestrator.cli.detect", return_value={"codex": "/fake"}), \
+                 patch("orchestrator.mcp_prompts.list_metadata", return_value=candidates) as listing, \
+                 patch("orchestrator.mcp_prompts.fetch", return_value=docs) as fetch, \
+                 patch("orchestrator.cli.execute", return_value=core.Result(0, "ok", "", False, False)) as execute, \
+                 patch("orchestrator.cli.journal"):
+                self.assertEqual(cli.main(args), 0)
+                listing.assert_called_once_with("P", "G", "dotnet")
+                fetch.assert_called_once_with([self.id, "aaaaaaaaaa"], "P", "G")
+                self.assertIn("context 1", execute.call_args.args[1])
+                docs[1]["tags"] = ["removed"]
+                self.assertEqual(cli.main(args), 2)
+                self.assertEqual(execute.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

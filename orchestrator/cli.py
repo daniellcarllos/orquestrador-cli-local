@@ -30,11 +30,18 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--timeout", type=int, default=300)
             sub.add_argument("--mcp-prompt-id", help="ID da referência de revisão no MCP")
             sub.add_argument("--mcp-context-id", action="append", default=[], help="ID de contexto adicional (opcional)")
+            sub.add_argument("--mcp-context-tag", help="Selecionar contextos recentes com esta tag exata")
+            sub.add_argument("--mcp-max-contexts", type=int, default=2, help="Limite de documentos obtidos pela tag (1 a 4)")
             sub.add_argument("--mcp-project", help="Projeto esperado para todos os documentos")
             sub.add_argument("--mcp-group", help="Grupo esperado para todos os documentos")
             sub.add_argument("--approve-mcp", action="store_true", help="Autorizar leitura dos IDs informados no MCP")
             sub.add_argument("--input-file", type=Path, help="Diff ou texto local autorizado para revisão")
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
+    listing = commands.add_parser("mcp-list", help="Listar metadados MCP por projeto, grupo e tag opcional")
+    listing.add_argument("--project", required=True)
+    listing.add_argument("--group", required=True)
+    listing.add_argument("--tag")
+    listing.add_argument("--approve-mcp", action="store_true")
     prepare = commands.add_parser("prepare", help="Preparar patch em cópia temporária")
     prepare.add_argument("task")
     prepare.add_argument("--agent", choices=("codex", "claude"))
@@ -77,6 +84,16 @@ def main(argv=None) -> int:
         if path.exists():
             print(path.read_text(encoding="utf-8"), end="")
         return 0
+    if args.action == "mcp-list":
+        try:
+            if not args.approve_mcp:
+                raise ValueError("A listagem remota requer --approve-mcp.")
+            entries = mcp_prompts.list_metadata(args.project, args.group, args.tag)
+            print(json.dumps({"count": len(entries), "prompts": entries}, ensure_ascii=False, indent=2))
+            return 0
+        except (ValueError, OSError) as exc:
+            print(f"Erro: {exc}", file=sys.stderr)
+            return 2
     try:
         cwd = args.cwd.resolve(strict=True)
         if not cwd.is_dir():
@@ -122,9 +139,9 @@ def main(argv=None) -> int:
         available = detect()
         selected = plan(args.task, available, args.agent, load_policy(args.policy) if args.policy else None)
         mcp_ids = ([args.mcp_prompt_id, *args.mcp_context_id] if args.action == "run" and args.mcp_prompt_id else [])
-        if args.action == "run" and (args.mcp_context_id or args.mcp_project or args.mcp_group or args.approve_mcp or args.input_file) and not args.mcp_prompt_id:
+        if args.action == "run" and (args.mcp_context_id or args.mcp_context_tag or args.mcp_project or args.mcp_group or args.approve_mcp or args.input_file) and not args.mcp_prompt_id:
             raise ValueError("Para revisão MCP, informe --mcp-prompt-id.")
-        print(json.dumps({**selected.as_dict(), "cwd": str(cwd), **({"mcp_ids": mcp_ids} if mcp_ids else {})}, ensure_ascii=False, indent=2), flush=True)
+        print(json.dumps({**selected.as_dict(), "cwd": str(cwd), **({"mcp_ids": mcp_ids, "mcp_context_tag": args.mcp_context_tag} if mcp_ids else {})}, ensure_ascii=False, indent=2), flush=True)
         if args.action == "plan":
             return 0
         if not args.approve:
@@ -138,6 +155,8 @@ def main(argv=None) -> int:
         if mcp_ids:
             if not args.approve_mcp or not args.mcp_project or not args.mcp_group:
                 raise ValueError("A leitura MCP exige --approve-mcp, --mcp-project e --mcp-group.")
+            if not 1 <= args.mcp_max_contexts <= 4:
+                raise ValueError("O limite de contextos por tag deve estar entre 1 e 4.")
             if not args.input_file:
                 raise ValueError("A revisão exige --input-file com diff ou conteúdo autorizado.")
             source = args.input_file.resolve(strict=True)
@@ -147,7 +166,21 @@ def main(argv=None) -> int:
                 review_input = source.read_text(encoding="utf-8")
             except UnicodeError as exc:
                 raise ValueError("O arquivo de revisão deve usar UTF-8.") from exc
-            docs = mcp_prompts.fetch(mcp_ids, args.mcp_project, args.mcp_group)
+            tagged_ids = []
+            if args.mcp_context_tag:
+                entries = mcp_prompts.list_metadata(args.mcp_project, args.mcp_group, args.mcp_context_tag)
+                candidates = [entry for entry in entries if entry["id"] not in mcp_ids]
+                if not candidates:
+                    raise ValueError("Nenhum contexto adicional encontrado para a tag no projeto e grupo informados.")
+                tagged_ids = [entry["id"] for entry in candidates[:args.mcp_max_contexts]]
+                if len(mcp_ids) + len(tagged_ids) > 5:
+                    raise ValueError("O total de documentos selecionados excede cinco.")
+                print(json.dumps({"matched_contexts": len(candidates), "selected_contexts": candidates[:args.mcp_max_contexts]}, ensure_ascii=False), flush=True)
+            docs = mcp_prompts.fetch([*mcp_ids, *tagged_ids], args.mcp_project, args.mcp_group)
+            for doc in docs:
+                if doc["id"] in tagged_ids and not any(isinstance(tag, str) and tag.casefold() == args.mcp_context_tag.casefold() for tag in doc.get("tags", [])):
+                    raise ValueError("A tag do contexto selecionado mudou desde a listagem.")
+            print(json.dumps({"mcp_documentos": [{k: doc.get(k) for k in ("id", "title", "version", "updated_at")} for doc in docs]}, ensure_ascii=False), flush=True)
             task = mcp_prompts.build_review_task(args.task, review_input, docs)
         run_id = str(uuid.uuid4())
         start = time.monotonic()

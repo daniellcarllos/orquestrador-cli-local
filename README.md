@@ -48,7 +48,17 @@ python3 -m orchestrator run "Revisar o diff .NET/C#" \
   --approve-mcp --approve
 ```
 
-`--approve-mcp` autoriza a consulta remota dos IDs escolhidos e `--approve` autoriza executar a CLI e enviar a ela a tarefa, o diff e os documentos recuperados. Para incluir contexto adicional, acrescente `--mcp-context-id ID_DO_CONTEXTO` uma vez por documento; o primeiro ID é a referência de revisão e os demais são dados de contexto potencialmente desatualizados. São aceitos até cinco documentos no total, com limites de tamanho, sem busca automática, indexação ou RAG. A revisão é exibida no terminal; não cria comentário em PR nem altera arquivos automaticamente. Confira a resposta antes de compartilhá-la.
+`--approve-mcp` autoriza a consulta remota dos IDs escolhidos e `--approve` autoriza executar a CLI e enviar a ela a tarefa, o diff e os documentos recuperados. Para incluir contexto adicional, acrescente `--mcp-context-id ID_DO_CONTEXTO` uma vez por documento; o primeiro ID é a referência de revisão e os demais são dados de contexto potencialmente desatualizados. São aceitos até cinco documentos no total, com limites de tamanho. A revisão é exibida no terminal; não cria comentário em PR nem altera arquivos automaticamente. Confira a resposta antes de compartilhá-la.
+
+Para descobrir metadados atualizados antes de selecionar documentos, liste por projeto e grupo, opcionalmente filtrando uma tag:
+
+```sh
+python3 -m orchestrator mcp-list --project "PROJETO" --group "GRUPO" --tag "TAG" --approve-mcp
+```
+
+Para selecionar contexto por tag durante uma revisão, adicione `--mcp-context-tag TAG --mcp-max-contexts 2` ao comando `run` acima. O orquestrador consulta a listagem a cada execução, exclui IDs já escolhidos e seleciona até dois documentos (limite configurável de 1 a 4) na ordem retornada pelo servidor, que neste servidor é por atualização mais recente. Ele mostra quantos foram encontrados, os metadados escolhidos e, depois da leitura, os IDs e versões efetivos. Falha se não houver um contexto adicional, se o grupo/projeto divergir ou se a tag tiver mudado. Pode haver alteração entre listagem e leitura; não é um snapshot transacional. A seleção usa apenas correspondência exata de tag, não relevância semântica ou validação da regra de negócio. Use tags específicas por repositório e assunto, revise a seleção e as datas. A aprovação da leitura também autoriza incluir no modelo os documentos selecionados por essa tag; o código não armazena seus textos.
+
+Essas opções não implementam indexação ou RAG e não buscam automaticamente conteúdo em outros projetos. Para reduzir dados e tokens, prefira poucos documentos específicos e um diff revisado para remover conteúdo sensível.
 
 Cada resposta é conferida localmente contra o ID, grupo e projeto fornecidos; divergência interrompe a execução. Esse filtro ocorre **após** o servidor devolver os dados e não é controle de acesso: o servidor MCP precisa aplicar autorização adequada antes da consulta. Confirme que o provedor/modelo, a assinatura e as políticas da organização permitem receber o diff e os documentos. Os textos não são armazenados no histórico do orquestrador, mas são enviados à CLI escolhida e podem ser mantidos ou processados conforme as políticas dela.
 
