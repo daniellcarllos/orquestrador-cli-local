@@ -24,7 +24,7 @@ class RoutingTests(unittest.TestCase):
             self.assertEqual((result.agent, result.model, result.usage), (agent, model, "desconhecido"))
 
     def test_claude_example_selects_light_for_simple_and_strong_for_review_and_planning(self):
-        policy = core.load_policy(Path(__file__).resolve().parent.parent / "policy.claude.example.json")
+        policy = core.load_policy(Path(__file__).resolve().parent.parent / "examples" / "policies" / "policy.claude.example.json")
         for task, expected_model, category in [("formatar um texto", "haiku", "geral"),
                                                 ("implementar código", "sonnet", "código"),
                                                 ("planejar arquitetura", "opus", "planejamento"),
