@@ -12,3 +12,5 @@ O roteamento verifica disponibilidade no PATH e a política de candidatos fornec
 
 O histórico local contém apenas identificador, data/hora de início (UTC), agente, versão de política, modelo, duração e status, em `~/.local/state/orquestrador-cli-local/history.jsonl`. Defina `ORCHESTRATOR_STATE_DIR` para outro local seguro. Arquivos novos usam modo 600 e diretórios novos modo 700; permissões preexistentes devem ser revisadas pelo usuário. O registro não é uma trilha de auditoria imutável.
 
+
+O painel web (`serve`) só escuta em 127.0.0.1, responde apenas a GET, não executa agentes nem lê a biblioteca MCP e serve arquivos somente de `web/dist`. O inventário com `probe=1` roda `--version` e `--help` das CLIs localmente, como `doctor --probe`.

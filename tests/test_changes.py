@@ -1,3 +1,4 @@
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,9 @@ class ProposalTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        env = patch.dict(os.environ, {"ORCHESTRATOR_STATE_DIR": str(self.root / "state")})  # histórico isolado
+        env.start()
+        self.addCleanup(env.stop)
         self.source = self.root / "source"
         self.source.mkdir()
         (self.source / "code.txt").write_text("original\n")

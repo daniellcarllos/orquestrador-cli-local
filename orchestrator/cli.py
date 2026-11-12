@@ -38,6 +38,8 @@ def parser() -> argparse.ArgumentParser:
             sub.add_argument("--approve-mcp", action="store_true", help="Autorizar leitura dos IDs informados no MCP")
             sub.add_argument("--input-file", type=Path, help="Diff ou texto local autorizado para revisão")
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
+    serve = commands.add_parser("serve", help="Painel web local (somente leitura) em 127.0.0.1")
+    serve.add_argument("--port", type=int, default=8765)
     listing = commands.add_parser("mcp-list", help="Listar metadados MCP por projeto, grupo e tag opcional")
     listing.add_argument("--project", required=True)
     listing.add_argument("--group", required=True)
@@ -80,6 +82,13 @@ def main(argv=None) -> int:
                           "agents": inventory,
                           "note": "Autenticação, elegibilidade de modelos e consumo de tokens não foram verificados."}, ensure_ascii=False, indent=2))
         return 0
+    if args.action == "serve":
+        from . import web
+
+        if not 1 <= args.port <= 65535:
+            print("Erro: porta inválida.", file=sys.stderr)
+            return 2
+        return web.serve(port=args.port)
     if args.action == "history":
         path = history_path()
         if path.exists():
@@ -124,6 +133,9 @@ def main(argv=None) -> int:
             if output.exists() or output.is_relative_to(cwd):
                 raise ValueError("A proposta deve ser um diretório novo fora da origem.")
             base = changes.validate_source(cwd)
+            run_id = str(uuid.uuid4())
+            started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            start = time.monotonic()
             with changes.temporary_copy() as tmp:
                 copy = Path(tmp)
                 changes.copy_tracked(cwd, copy)
@@ -131,6 +143,10 @@ def main(argv=None) -> int:
                     raise ValueError("A origem mudou durante a cópia.")
                 changes.init_copy(copy)
                 result = execute(command(selected.agent, executable, copy, write=True, model=selected.model), args.task, copy, args.timeout)
+                journal({"id": run_id, "action": "prepare", "started_at": started_at, "agent": selected.agent,
+                         "policy_version": selected.policy_version, "model": selected.model, "usage": None,
+                         "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
+                         "timed_out": result.timed_out, "truncated": result.truncated})
                 if result.timed_out or result.exit_code != 0:
                     raise ValueError("Execução falhou ou expirou; nenhuma proposta foi criada.")
                 metadata = changes.export_patch(copy, output, base)
@@ -187,7 +203,7 @@ def main(argv=None) -> int:
         started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         start = time.monotonic()
         result = execute(command(selected.agent, available[selected.agent], cwd, model=selected.model), task, cwd, args.timeout)
-        journal({"id": run_id, "started_at": started_at, "agent": selected.agent, "policy_version": selected.policy_version,
+        journal({"id": run_id, "action": "run", "started_at": started_at, "agent": selected.agent, "policy_version": selected.policy_version,
                  "model": selected.model, "usage": None, "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
                  "timed_out": result.timed_out, "truncated": result.truncated})
         print(result.stdout, end="")
