@@ -7,6 +7,7 @@ import platform
 import sys
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import capabilities, changes, mcp_prompts
@@ -183,9 +184,10 @@ def main(argv=None) -> int:
             print(json.dumps({"mcp_documentos": [{k: doc.get(k) for k in ("id", "title", "version", "updated_at")} for doc in docs]}, ensure_ascii=False), flush=True)
             task = mcp_prompts.build_review_task(args.task, review_input, docs)
         run_id = str(uuid.uuid4())
+        started_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
         start = time.monotonic()
         result = execute(command(selected.agent, available[selected.agent], cwd, model=selected.model), task, cwd, args.timeout)
-        journal({"id": run_id, "agent": selected.agent, "policy_version": selected.policy_version,
+        journal({"id": run_id, "started_at": started_at, "agent": selected.agent, "policy_version": selected.policy_version,
                  "model": selected.model, "usage": None, "duration_ms": round((time.monotonic() - start) * 1000), "exit_code": result.exit_code,
                  "timed_out": result.timed_out, "truncated": result.truncated})
         print(result.stdout, end="")

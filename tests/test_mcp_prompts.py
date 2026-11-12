@@ -93,6 +93,32 @@ class MCPPromptTests(unittest.TestCase):
         selected = mcp_prompts.parse_listing(result, "P", "G", "dotnet")
         self.assertEqual([x["id"] for x in selected], ["aaaaaaaaaa"])
 
+    def test_list_follows_pagination_and_deduplicates(self):
+        def page(ids, cursor):
+            entries = [{"id": i, "titulo": i, "grupo": "G", "projeto": "P", "tags": ["t"]} for i in ids]
+            return SimpleNamespace(is_error=False, structured_content={"prompts": entries, "proximo_cursor": cursor}, content=[])
+
+        pages = [page(["aaaaaaaaaa", "bbbbbbbbbb"], "c1"), page(["bbbbbbbbbb", "cccccccccc"], "c2"), page(["dddddddddd"], None)]
+        calls = []
+
+        async def call(arguments):
+            calls.append(arguments)
+            return pages[len(calls) - 1]
+
+        selected = asyncio.run(mcp_prompts.collect_pages(call, "P", "G", "t"))
+        self.assertEqual([x["id"] for x in selected], ["aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd"])
+        self.assertEqual([c.get("cursor") for c in calls], [None, "c1", "c2"])
+        self.assertTrue(all(c["limite"] == mcp_prompts.PAGE_SIZE and c["tag"] == "t" for c in calls))
+
+    def test_list_rejects_stuck_or_endless_pagination(self):
+        stuck = SimpleNamespace(is_error=False, structured_content={"prompts": [], "proximo_cursor": "same"}, content=[])
+
+        async def call(arguments):
+            return stuck
+
+        with self.assertRaises(ValueError):
+            asyncio.run(mcp_prompts.collect_pages(call, "P", "G", None))
+
     def test_list_command_requires_approval(self):
         with patch("orchestrator.mcp_prompts.list_metadata") as list_metadata:
             self.assertEqual(cli.main(["mcp-list", "--project", "P", "--group", "G"]), 2)

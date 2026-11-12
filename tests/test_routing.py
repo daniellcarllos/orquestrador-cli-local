@@ -72,11 +72,14 @@ class RoutingTests(unittest.TestCase):
             with patch("orchestrator.cli.detect", return_value=self.available), \
                  patch("orchestrator.cli.capabilities.inspect", return_value={"model_flag": True}), \
                  patch("orchestrator.cli.execute", return_value=result) as execute, \
-                 patch("orchestrator.cli.journal"):
+                 patch("orchestrator.cli.journal") as journal:
                 self.assertEqual(cli.main(["run", "formatar", "--policy", str(file), "--approve"]), 0)
                 argv = execute.call_args.args[0]
                 self.assertEqual(argv[0], "/g")
                 self.assertEqual(argv[argv.index("--model") + 1], "fast-model")
+                entry = journal.call_args.args[0]
+                self.assertRegex(entry["started_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$")
+                self.assertNotIn("formatar", json.dumps(entry))
 
     def test_capability_inventory_from_actual_help_shape(self):
         version = core.Result(0, "cli 1.2.3\n", "", False, False)

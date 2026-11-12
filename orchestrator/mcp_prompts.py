@@ -10,6 +10,8 @@ from urllib.parse import urlsplit
 
 MAX_TEXT = 120_000
 MAX_CONTEXT = 240_000
+PAGE_SIZE = 100       # limite máximo aceito pelo servidor por página
+MAX_PAGES = 100       # teto de 10 000 itens por listagem; acima disso, falha explícita
 
 
 class MCPPromptError(ValueError):
@@ -79,6 +81,39 @@ def parse_listing(result, project: str, group: str, tag: str | None) -> list[dic
     return matches
 
 
+def page_cursor(result) -> str | None:
+    """Cursor da próxima página (`proximo_cursor`), ou None na última."""
+    cursor = parse_object(result).get("proximo_cursor")
+    if cursor is None:
+        return None
+    if not isinstance(cursor, str) or not cursor or len(cursor) > 200:
+        raise MCPPromptError("Cursor de paginação MCP inválido.")
+    return cursor
+
+
+async def collect_pages(call, project: str, group: str, tag: str | None) -> list[dict]:
+    """Percorre todas as páginas de `listar_prompts` via `call(arguments)` e junta os itens sem duplicar."""
+    matches, seen, cursor = [], set(), None
+    for _ in range(MAX_PAGES):
+        arguments = {"projeto": project, "grupo": group, "limite": PAGE_SIZE}
+        if tag:
+            arguments["tag"] = tag
+        if cursor:
+            arguments["cursor"] = cursor
+        result = await call(arguments)
+        for item in parse_listing(result, project, group, tag):
+            if item["id"] not in seen:
+                seen.add(item["id"])
+                matches.append(item)
+        next_cursor = page_cursor(result)
+        if next_cursor is None:
+            return matches
+        if next_cursor == cursor:
+            raise MCPPromptError("Paginação MCP não avançou.")
+        cursor = next_cursor
+    raise MCPPromptError("Listagem MCP extensa demais; refine por tag.")
+
+
 async def _list(url: str, token: str, project: str, group: str, tag: str | None) -> list[dict]:
     try:
         import httpx2
@@ -86,13 +121,12 @@ async def _list(url: str, token: str, project: str, group: str, tag: str | None)
         from mcp.client.streamable_http import streamable_http_client
     except ImportError as exc:
         raise MCPPromptError("Integração MCP opcional indisponível: instale a dependência mcp do projeto em ambiente autorizado.") from exc
-    arguments = {"projeto": project, "grupo": group}
-    if tag:
-        arguments["tag"] = tag
     async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + token}, timeout=20, follow_redirects=False) as http:
         async with Client(streamable_http_client(url, http_client=http), raise_exceptions=True) as client:
-            result = await client.call_tool("listar_prompts", arguments, read_timeout_seconds=20)
-            return parse_listing(result, project, group, tag)
+            async def call(arguments):
+                return await client.call_tool("listar_prompts", arguments, read_timeout_seconds=20)
+
+            return await collect_pages(call, project, group, tag)
 
 
 def list_metadata(project: str, group: str, tag: str | None = None) -> list[dict]:
@@ -102,7 +136,7 @@ def list_metadata(project: str, group: str, tag: str | None = None) -> list[dict
     if tag is not None and (not tag.strip() or len(tag) > 100):
         raise ValueError("Tag deve ter entre 1 e 100 caracteres.")
     try:
-        return asyncio.run(asyncio.wait_for(_list(url, token, project, group, tag), timeout=60))
+        return asyncio.run(asyncio.wait_for(_list(url, token, project, group, tag), timeout=120))
     except MCPPromptError:
         raise
     except Exception as exc:
