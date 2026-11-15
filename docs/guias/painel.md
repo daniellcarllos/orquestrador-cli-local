@@ -16,7 +16,7 @@ O `serve` imprime um endereço como `http://127.0.0.1:8765/#token=...`. Abra exa
 - **Nova tarefa:** fluxo, repositório (com favoritos e verificação de branch e alterações pendentes), campos de cada fluxo, configurações da execução (simulado, tetos, nível dos modelos) e ações ao terminar. **Ver plano** roda `--so-plano` e mostra papéis e modelos sem custo. **Executar** abre um resumo para confirmar.
 - **Execuções:** lista desta sessão e do histórico. Mostra as etapas ao vivo, com personagem, modelo, tokens, custo e status, além do log, do resultado em Markdown, dos patches propostos (aplicar exige confirmação) e das ações sobre o resultado, com prévia do texto antes de enviar.
 - **Escritório:** a visão em pixel art descrita abaixo.
-- **Configurações:** provedores com chave (só sim ou não), modelo de cada nível e preços, salvos em `~/.local/state/orquestrador-cli-local/modelos.json`; padrões de teto e repositórios favoritos.
+- **Configurações:** provedores com chave (só sim ou não; as chaves ficam no `.env`), modelo de cada nível e preços, salvos em `~/.local/state/orquestrador-cli-local/modelos.json`; padrões de teto e repositórios favoritos.
 - **Como usar:** passo a passo e qual fluxo escolher.
 
 Atalho: `?aba=execucoes` (ou `nova`, `escritorio`, `configuracoes`, `ajuda`) abre direto numa aba.

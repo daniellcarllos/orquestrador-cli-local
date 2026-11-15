@@ -9,7 +9,13 @@ uv venv .venv && uv pip install --python .venv/bin/python -e '.[api]'
 .venv/bin/python -m orchestrator api-doctor          # provedores configurados (sem mostrar chaves)
 ```
 
-Chaves só pelo ambiente: `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_API_KEY`. Defina limite de gasto no console de cada provedor.
+Chaves no arquivo `.env` da raiz do projeto (não versionado), a partir do modelo:
+
+```sh
+cp .env.example .env && chmod 600 .env    # preencha ANTHROPIC_API_KEY, GOOGLE_API_KEY ou OPENAI_API_KEY
+```
+
+O orquestrador lê o `.env` ao iniciar; variáveis já definidas no terminal têm prioridade. Outro caminho: `ORCHESTRATOR_ENV_FILE=/caminho/.env`. Se o arquivo puder ser lido por outros usuários, ele avisa para usar `chmod 600`. Defina também um limite de gasto no console de cada provedor.
 
 ## Catálogo de modelos
 

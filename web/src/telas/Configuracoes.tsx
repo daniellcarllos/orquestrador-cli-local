@@ -74,9 +74,10 @@ export function Configuracoes() {
           ))}
         </ul>
         <p className="miudo">
-          Por segurança, as chaves não são digitadas aqui: defina a variável no terminal antes de iniciar o painel e reinicie o serve.
+          Por segurança, as chaves não são digitadas aqui: preencha o arquivo .env na raiz do projeto e reinicie o serve.
         </p>
-        <pre className="log">{`export ANTHROPIC_API_KEY=...   # de um gerenciador de senhas, não do histórico
+        <pre className="log">{`cp -n .env.example .env && chmod 600 .env
+# edite .env: ANTHROPIC_API_KEY=...
 .venv/bin/python -m orchestrator serve`}</pre>
       </section>
 

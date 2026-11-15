@@ -78,6 +78,9 @@ def journal(entry: dict) -> None:
 
 
 def main(argv=None) -> int:
+    from .ambiente import carregar
+
+    carregar()  # .env da raiz do projeto; o ambiente do terminal tem prioridade
     args = parser().parse_args(argv)
     if args.action == "doctor":
         found = detect()

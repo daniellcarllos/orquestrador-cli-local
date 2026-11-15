@@ -64,8 +64,10 @@ O jeito principal de usar o orquestrador é pelo painel. Tudo roda na sua máqui
 uv venv .venv && uv pip install --python .venv/bin/python -e '.[api]'
 cd web && npm install && npm run build && cd ..
 
+# chaves de API: preencha o .env (criado a partir do .env.example, permissão 600)
+cp -n .env.example .env && chmod 600 .env
+
 # sempre
-export ANTHROPIC_API_KEY=...                 # opcional: sem chave, use o modo simulado
 .venv/bin/python -m orchestrator serve
 # abra o endereço exibido, que termina com #token=...
 ```
