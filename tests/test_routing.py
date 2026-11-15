@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import capabilities, cli, core
+from orchestrator import cli
+from orchestrator.terminal import capabilities, core
 
 
 class RoutingTests(unittest.TestCase):
@@ -84,7 +85,7 @@ class RoutingTests(unittest.TestCase):
     def test_capability_inventory_from_actual_help_shape(self):
         version = core.Result(0, "cli 1.2.3\n", "", False, False)
         help_result = core.Result(0, "--model --output-format --sandbox --resume", "", False, False)
-        with patch("orchestrator.capabilities.execute", side_effect=[version, help_result]):
+        with patch("orchestrator.terminal.capabilities.execute", side_effect=[version, help_result]):
             inventory = capabilities.inspect("gemini", "/g", Path.cwd())
         self.assertEqual(inventory["version"], "1.2.3")
         self.assertTrue(inventory["model_flag"])

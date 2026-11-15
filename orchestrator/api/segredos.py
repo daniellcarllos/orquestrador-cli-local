@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from ..core import redact as _redigir_basico
+from ..terminal.core import redact as _redigir_basico
 
 _PADROES = [
     (re.compile(r"sk-ant-[A-Za-z0-9_\-]{10,}"), "[CHAVE-ANTHROPIC]"),

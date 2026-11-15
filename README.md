@@ -2,7 +2,7 @@
 
 Orquestrador de agentes de IA com dois modos:
 
-- **Por API (Agno):** uma equipe de agentes especialistas (triagem, análise, revisão, planejamento, implementação, coordenação), cada um com o modelo do nível certo, trabalhando em paralelo em code review, análise de código e desenvolvimento. Mede tokens e custo, respeita um teto de gasto e executa ações ao terminar, como comentar na PR. Veja [docs/api.md](docs/api.md).
+- **Por API (Agno):** uma equipe de agentes especialistas (triagem, análise, revisão, planejamento, implementação, coordenação), cada um com o modelo do nível certo, trabalhando em paralelo em code review, análise de código e desenvolvimento. Mede tokens e custo, respeita um teto de gasto e executa ações ao terminar, como comentar na PR. Veja [docs/guias/api.md](docs/guias/api.md).
 - **Por CLI:** uma CLI já autenticada pelo usuário (Codex, Claude Code ou Gemini CLI), sem chave de API e sem dependências de runtime.
 
 Nos dois modos, nada executa sem aprovação explícita. Opcionalmente, os agentes usam prompts e contextos da biblioteca MCP (`mcp-prompts`).
@@ -42,19 +42,17 @@ python3 -m unittest discover -s tests -v
 
 ```
 orchestrator/
-  cli.py            comandos e fluxo de aprovação
-  core.py           classificação, política de roteamento e execução restrita da CLI
-  capabilities.py   inventário das opções declaradas por cada CLI
-  changes.py        cópia temporária, exportação e aplicação de patches
-  mcp_prompts.py    leitura explícita e somente de leitura da biblioteca MCP
-  web.py            servidor local do painel (API com token + arquivos de web/dist)
-  jobs.py           execuções disparadas pelo painel: validação e linha de comando
-  api/              orquestração por API: catálogo, custos, ferramentas, agentes, fluxos, equipe, ações
-web/                front React do painel: escritório 16 bits com um setor por agente
-tests/              testes unitários (unittest, sem invocar CLIs reais)
-examples/policies/  políticas de roteamento de exemplo (modo CLI)
-examples/api/       catálogo de modelos por nível (modo API)
-docs/               documentação detalhada
+  cli.py              ponto de entrada: todos os comandos
+  changes.py          cópia temporária, exportação e aplicação de patches (usado pelos dois modos)
+  mcp_prompts.py      leitura e escrita na biblioteca MCP (usado pelos dois modos)
+  terminal/           modo terminal: roteamento por política e execução restrita da CLI (core, capabilities)
+  api/                modo API (Agno): catálogo, custos, ferramentas, agentes, fluxos, equipe, ações, comandos
+  painel/             painel web: servidor com token (web.py) e execuções disparadas pela interface (jobs.py)
+web/                  front React do painel (src/telas, src/office, src/pixel, src/panels)
+tests/                testes unittest, sem rede e sem CLIs reais (modelo simulado no modo API)
+examples/api/         catálogo de modelos por nível
+examples/policies/    políticas de roteamento do modo terminal
+docs/                 guias, segurança e plano (índice em docs/README.md)
 ```
 
 ## Painel web: como usar
@@ -80,16 +78,18 @@ export ANTHROPIC_API_KEY=...                 # opcional: sem chave, use o modo s
 | Configurações | Ver quais provedores têm chave, trocar o modelo de cada nível, preencher preços, padrões de teto e repositórios favoritos. |
 | Como usar | Guia rápido e qual fluxo escolher. |
 
-Como funciona por dentro: o servidor (`orchestrator/web.py`, só biblioteca padrão) escuta em 127.0.0.1, exige o token gerado a cada inicialização e roda o próprio CLI em segundo plano para cada execução (`orchestrator/jobs.py`). O front React fica em `web/` e é compilado em `web/dist`. Para desenvolver o front com recarga automática: `cd web && npm run dev`, com o `serve` rodando na porta 8765. Detalhes em [docs/painel.md](docs/painel.md).
+Como funciona por dentro: o servidor (`orchestrator/painel/web.py`, só biblioteca padrão) escuta em 127.0.0.1, exige o token gerado a cada inicialização e roda o próprio CLI em segundo plano para cada execução (`orchestrator/painel/jobs.py`). O front React fica em `web/` e é compilado em `web/dist`. Para desenvolver o front com recarga automática: `cd web && npm run dev`, com o `serve` rodando na porta 8765. Detalhes em [docs/guias/painel.md](docs/guias/painel.md).
 
 ## Documentação
 
-- [Roteamento e políticas](docs/roteamento.md): classificador, níveis, arquivo de política, exemplo para Claude Code.
-- [Revisão com prompts do MCP](docs/mcp.md): variáveis `MCP_PROMPTS_URL` e `MCP_PROMPTS_TOKEN`, seleção por ID e por tag, limites.
+Índice completo em [docs/README.md](docs/README.md).
+
+
+- [Roteamento e políticas](docs/guias/terminal-roteamento.md): classificador, níveis, arquivo de política, exemplo para Claude Code.
+- [Revisão com prompts do MCP](docs/guias/mcp.md): variáveis `MCP_PROMPTS_URL` e `MCP_PROMPTS_TOKEN`, seleção por ID e por tag, limites.
 - [Limites de segurança](docs/seguranca.md): modos de execução, isolamento, patches, histórico.
-- [Orquestração por API](docs/api.md): instalação, catálogo de modelos, fluxos, ações e custos.
-- [Painel web](docs/painel.md): o escritório em pixel art, o que mostra e como rodar.
-- [Evolução](docs/roadmap.md): próximos passos.
+- [Orquestração por API](docs/guias/api.md): instalação, catálogo de modelos, fluxos, ações e custos.
+- [Painel web](docs/guias/painel.md): o escritório em pixel art, o que mostra e como rodar.
 - [Plano v2: orquestração por API com Agno](docs/plano/README.md): objetivos, arquitetura e seis etapas.
 
 ## Integração com o servidor `mcp-prompts`

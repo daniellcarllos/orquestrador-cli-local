@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import cli, core
+from orchestrator import cli
+from orchestrator.terminal import core
 
 
 class PolicyTests(unittest.TestCase):

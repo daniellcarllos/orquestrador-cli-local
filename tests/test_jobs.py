@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import jobs
+from orchestrator.painel import jobs
 
 try:
     import agno  # noqa: F401

@@ -10,8 +10,9 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import capabilities, changes, mcp_prompts
-from .core import AGENTS, command, detect, execute, load_policy, plan
+from . import changes, mcp_prompts
+from .terminal import capabilities
+from .terminal.core import AGENTS, command, detect, execute, load_policy, plan
 
 
 def parser() -> argparse.ArgumentParser:
@@ -92,7 +93,7 @@ def main(argv=None) -> int:
 
         return comandos.executar(args)
     if args.action == "serve":
-        from . import web
+        from .painel import web
 
         if not 1 <= args.port <= 65535:
             print("Erro: porta inválida.", file=sys.stderr)

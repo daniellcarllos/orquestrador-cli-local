@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import changes, cli, core
+from orchestrator import changes, cli
+from orchestrator.terminal import core
 
 
 class ProposalTests(unittest.TestCase):

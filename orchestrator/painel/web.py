@@ -23,11 +23,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from . import capabilities, jobs
-from .cli import history_path
-from .core import detect, load_policy, plan
+from ..cli import history_path
+from ..terminal import capabilities
+from ..terminal.core import detect, load_policy, plan
+from . import jobs
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 DIST = ROOT / "web" / "dist"
 POLICIES = ROOT / "examples" / "policies"
 HISTORY_LIMIT = 500
@@ -71,7 +72,7 @@ def inventory(probe: bool) -> dict:
 
 
 def _catalogo_efetivo() -> tuple[dict | None, bool]:
-    from .api import modelos
+    from ..api import modelos
 
     usuario = jobs.catalogo_usuario()
     try:
@@ -84,7 +85,7 @@ def _catalogo_efetivo() -> tuple[dict | None, bool]:
 
 def catalogo() -> dict:
     """Catálogo em uso (do usuário, se existir) e quais provedores têm chave (só sim/não)."""
-    from .api import modelos
+    from ..api import modelos
 
     c, do_usuario = _catalogo_efetivo()
     base = {"provedores": modelos.provedores_configurados(), "do_usuario": do_usuario}
@@ -95,7 +96,7 @@ def catalogo() -> dict:
 
 
 def salvar_catalogo(dados: dict) -> dict:
-    from .api import modelos
+    from ..api import modelos
 
     modelos.validar(dados)
     caminho = jobs.catalogo_usuario()
@@ -132,7 +133,7 @@ def preview(task: str, policy_name: str | None) -> dict:
 
 
 def resultado(execucao_id: str) -> dict:
-    from .api import registro
+    from ..api import registro
 
     meta = registro.ler(execucao_id)
     pasta = registro.pasta_execucoes() / execucao_id
@@ -288,7 +289,7 @@ class Handler(BaseHTTPRequestHandler):
     def _aplicar(self, execucao: str, corpo: dict) -> dict:
         if corpo.get("confirmado") is not True:
             raise ValueError("Confirme a aplicação do patch.")
-        from .api import registro
+        from ..api import registro
 
         pasta = (registro.pasta_execucoes() / execucao).resolve()
         proposta = (pasta / str(corpo.get("proposta", ""))).resolve()

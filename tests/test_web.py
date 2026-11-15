@@ -8,7 +8,7 @@ import urllib.request
 from pathlib import Path
 from unittest.mock import patch
 
-from orchestrator import web
+from orchestrator.painel import web
 
 
 class WebTests(unittest.TestCase):
@@ -59,7 +59,7 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.get("/api/history"), (200, {"entries": []}))
 
     def test_plan_preview_without_execution_and_policy_restricted_to_examples(self):
-        with patch("orchestrator.web.detect", return_value={"codex": "/c", "claude": "/a", "gemini": None}):
+        with patch("orchestrator.painel.web.detect", return_value={"codex": "/c", "claude": "/a", "gemini": None}):
             status, data = self.get("/api/plan?task=revisar%20c%C3%B3digo&policy=policy.claude.example.json")
             self.assertEqual((status, data["agent"], data["model"]), (200, "claude", "opus"))
             status, data = self.get("/api/plan?task=x&policy=..%2F..%2Fpyproject.toml")
@@ -68,8 +68,8 @@ class WebTests(unittest.TestCase):
             self.assertEqual(status, 400)
 
     def test_doctor_without_probe_does_not_run_clis(self):
-        with patch("orchestrator.web.detect", return_value={"codex": "/c", "claude": None, "gemini": None}), \
-             patch("orchestrator.web.capabilities.inspect") as inspect:
+        with patch("orchestrator.painel.web.detect", return_value={"codex": "/c", "claude": None, "gemini": None}), \
+             patch("orchestrator.painel.web.capabilities.inspect") as inspect:
             status, data = self.get("/api/doctor")
             inspect.assert_not_called()
         self.assertEqual((status, data["probed"], data["agents"]["codex"]["available"], data["agents"]["claude"]["available"]), (200, False, True, False))
@@ -77,7 +77,7 @@ class WebTests(unittest.TestCase):
     def test_static_rejects_traversal_and_only_get(self):
         with tempfile.TemporaryDirectory() as dist:
             Path(dist, "index.html").write_text("<html>painel</html>")
-            with patch("orchestrator.web.DIST", Path(dist)):
+            with patch("orchestrator.painel.web.DIST", Path(dist)):
                 with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/qualquer/rota") as r:
                     self.assertIn(b"painel", r.read())  # SPA fallback
                 with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/..%2F..%2Fetc%2Fpasswd") as r:

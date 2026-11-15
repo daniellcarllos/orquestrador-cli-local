@@ -165,7 +165,7 @@ def _fluxo(base, args) -> int:
     repo = Repositorio(args.cwd) if args.cwd else None
     historico = []
     try:
-        from ..web import read_history
+        from ..painel.web import read_history
 
         historico = read_history(5000)
     except Exception:
@@ -265,7 +265,7 @@ def _desenvolvimento_markdown(consolidacao, frentes: dict) -> str:
 def _custos(base, dias: int) -> int:
     from datetime import datetime, timedelta, timezone
 
-    from ..web import read_history
+    from ..painel.web import read_history
 
     limite = (datetime.now(timezone.utc) - timedelta(days=dias)).isoformat()
     entradas = [e for e in read_history(5000) if e.get("modo") == "api" and str(e.get("started_at", "")) >= limite]

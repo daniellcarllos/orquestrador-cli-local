@@ -22,9 +22,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .cli import history_path
+from ..cli import history_path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 POLITICAS = ROOT / "examples" / "policies"
 FLUXOS_API = ("revisar", "analisar", "desenvolver", "equipe")
 FLUXOS = (*FLUXOS_API, "cli")
@@ -283,7 +283,7 @@ class Gerenciador:
         return job
 
     def _acompanhar(self, job: Job) -> None:
-        from .api.segredos import redigir
+        from ..api.segredos import redigir
 
         def ler_erro():
             for linha in job.processo.stderr:
@@ -341,7 +341,7 @@ def rodar_cli(argumentos: list[str], timeout: int = 120) -> tuple[int, str]:
     """Comandos curtos e síncronos (aplicar patch, repetir ação)."""
     r = subprocess.run([sys.executable, "-m", "orchestrator", *argumentos], cwd=ROOT, stdin=subprocess.DEVNULL,
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout, check=False)
-    from .api.segredos import redigir
+    from ..api.segredos import redigir
 
     return r.returncode, redigir(r.stdout.decode("utf-8", errors="replace"))[-8000:]
 

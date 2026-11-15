@@ -8,7 +8,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from orchestrator import cli, core, mcp_prompts
+from orchestrator import cli, mcp_prompts
+from orchestrator.terminal import core
 
 
 class MCPPromptTests(unittest.TestCase):
