@@ -1,18 +1,36 @@
 {
-  "versao": "modelos-1",
+  "versao": "modelos-2",
   "niveis": {
-    "leve":  { "provedor": "anthropic", "modelo": "claude-haiku-5-5" },
-    "medio": { "provedor": "anthropic", "modelo": "claude-sonnet-5-5" },
-    "forte": { "provedor": "anthropic", "modelo": "claude-opus-5-5" }
+    "leve": {
+      "provedor": "anthropic",
+      "modelo": "claude-haiku-5-5"
+    },
+    "medio": {
+      "provedor": "anthropic",
+      "modelo": "claude-sonnet-5-5"
+    },
+    "forte": {
+      "provedor": "anthropic",
+      "modelo": "claude-opus-5-5"
+    }
   },
   "alternativos": {
-    "leve":  [],
+    "leve": [],
     "medio": [],
     "forte": []
   },
   "precos_por_milhao": {
-    "claude-haiku-5-5":  { "entrada": null, "saida": null },
-    "claude-sonnet-5-5": { "entrada": null, "saida": null },
-    "claude-opus-5-5":   { "entrada": null, "saida": null }
+    "claude-haiku-5-5": {
+      "entrada": 0.1,
+      "saida": 0.5
+    },
+    "claude-sonnet-5-5": {
+      "entrada": 2.0,
+      "saida": 10.0
+    },
+    "claude-opus-5-5": {
+      "entrada": 4.0,
+      "saida": 20.0
+    }
   }
 }
