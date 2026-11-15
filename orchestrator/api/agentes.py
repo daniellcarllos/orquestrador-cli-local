@@ -126,6 +126,7 @@ class Contexto:
             etapa.status, etapa.detalhe = "fora_do_contrato", "resposta vazia"
             raise ValueError(f"A etapa {etapa.papel} não produziu resposta.")
         etapa.status = "ok"
+        self.execucao.progresso()
         return conteudo
 
 

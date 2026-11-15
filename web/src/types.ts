@@ -44,10 +44,14 @@ export interface Inventario {
   probed: boolean
 }
 
+export interface ModeloNivel { provedor: string; modelo: string }
 export interface Catalogo {
   versao: string | null
-  niveis: Record<string, { provedor: string; modelo: string }>
+  niveis: Record<string, ModeloNivel>
+  alternativos: Record<string, ModeloNivel[]>
+  precos_por_milhao: Record<string, { entrada: number | null; saida: number | null }>
   provedores: Record<string, boolean>
+  do_usuario: boolean
 }
 
 export interface Plano {

@@ -52,6 +52,7 @@ class Execucao:
     etapas: list[Etapa] = field(default_factory=list)
     acoes: list[dict] = field(default_factory=list)
     status: str = "executando"
+    progresso_ativo: bool = False  # grava meta.json a cada etapa (acompanhamento ao vivo pelo painel)
     _inicio: float = field(default_factory=time.monotonic, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -65,7 +66,14 @@ class Execucao:
     def adicionar(self, etapa: Etapa) -> Etapa:
         with self._lock:
             self.etapas.append(etapa)
+        self.progresso()
         return etapa
+
+    def progresso(self) -> None:
+        if self.progresso_ativo:
+            with self._lock:
+                meta = self.meta()
+            self.salvar("meta.json", meta)
 
     def salvar(self, nome: str, conteudo: str | dict | list) -> Path:
         texto = conteudo if isinstance(conteudo, str) else json.dumps(conteudo, ensure_ascii=False, indent=2)

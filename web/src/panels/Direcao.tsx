@@ -43,7 +43,7 @@ export function Direcao({ politicas }: { politicas: string[] }) {
         </select>
       </label>
       <div className="decisao">
-        {carregando && <span className="piscando">consultando…</span>}
+        {carregando && <span className="piscando">consultando...</span>}
         {erro && <span className="erro">{erro}</span>}
         {plano && !carregando && (
           <>

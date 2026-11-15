@@ -51,7 +51,7 @@ export function Historico({ execucoes, posto }: { execucoes: Execucao[]; posto: 
                 <Fragment key={e.id}>
                   <tr className={`${ok ? '' : 'linha-falha'} ${api ? 'clicavel' : ''}`} onClick={() => api && setAberta(aberta === e.id ? null : e.id)}>
                     <td>{formatarData(e.started_at)}</td>
-                    <td>{api ? '▸ ' : ''}{e.action ?? 'run'}</td>
+                    <td>{api ? '+ ' : ''}{e.action ?? 'run'}</td>
                     <td>{api ? 'API' : CLI_NOMES[e.agent] ?? e.agent}</td>
                     <td>{api ? e.etapas?.length ?? 0 : 1}</td>
                     <td className="miudo">{modelos.join(', ')}</td>

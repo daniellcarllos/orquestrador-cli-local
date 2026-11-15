@@ -1,125 +1,73 @@
-import { useEffect, useMemo, useState } from 'react'
-import { api } from './api'
-import type { Catalogo, Execucao, Inventario } from './types'
-import { SETORES, type Papel, type Setor } from './office/setores'
-import { Sala, type Situacao } from './office/Sala'
-import { formatarCusto, porExecucoes, porPosto, sucesso, type Estatistica } from './office/estatisticas'
-import { Direcao } from './panels/Direcao'
-import { Portaria } from './panels/Portaria'
-import { Historico } from './panels/Historico'
+import { useEffect, useState } from 'react'
+import { api, temToken, type Ambiente } from './api'
+import type { Execucao } from './types'
+import { Escritorio } from './telas/Escritorio'
+import { NovaTarefa } from './telas/NovaTarefa'
+import { Execucoes } from './telas/Execucoes'
+import { Configuracoes } from './telas/Configuracoes'
+import { ComoUsar } from './telas/ComoUsar'
 
-const INTERVALO_HISTORICO = 5000
-const INTERVALO_INVENTARIO = 60_000
-const POSTOS_API: Papel[] = ['coordenador', 'triagem', 'planejador', 'analista', 'revisor', 'implementador']
+type Aba = 'escritorio' | 'nova' | 'execucoes' | 'configuracoes' | 'ajuda'
+const ABAS: { id: Aba; nome: string }[] = [
+  { id: 'nova', nome: 'Nova tarefa' },
+  { id: 'execucoes', nome: 'Execuções' },
+  { id: 'escritorio', nome: 'Escritório' },
+  { id: 'configuracoes', nome: 'Configurações' },
+  { id: 'ajuda', nome: 'Como usar' },
+]
 
 export default function App() {
-  const [execucoes, setExecucoes] = useState<Execucao[]>([])
-  const [inventario, setInventario] = useState<Inventario | null>(null)
-  const [catalogo, setCatalogo] = useState<Catalogo | null>(null)
-  const [politicas, setPoliticas] = useState<string[]>([])
+  const [aba, setAba] = useState<Aba>(() => {
+    const daUrl = new URLSearchParams(window.location.search).get('aba') as Aba | null
+    return (daUrl && ABAS.some((a) => a.id === daUrl) ? daUrl : (localStorage.getItem('orquestrador-aba') as Aba)) || 'nova'
+  })
+  const [historico, setHistorico] = useState<Execucao[]>([])
   const [erro, setErro] = useState<string | null>(null)
-  const [selecionado, setSelecionado] = useState<Papel | null>(null)
-  const [agora, setAgora] = useState(Date.now())
+  const [ambiente, setAmbiente] = useState<Ambiente | null>(null)
+  const [jobInicial, setJobInicial] = useState<string | null>(null)
 
+  useEffect(() => { localStorage.setItem('orquestrador-aba', aba) }, [aba])
   useEffect(() => {
-    const carregar = () =>
-      api.historico().then((h) => { setExecucoes(h); setErro(null); setAgora(Date.now()) }).catch((e: Error) => setErro(e.message))
+    if (!temToken()) return
+    const carregar = () => api.historico().then((h) => { setHistorico(h); setErro(null) }).catch((e: Error) => setErro(e.message))
     carregar()
-    const t = setInterval(carregar, INTERVALO_HISTORICO)
+    api.ambiente().then(setAmbiente).catch(() => undefined)
+    const t = setInterval(carregar, 4000)
     return () => clearInterval(t)
   }, [])
-
-  useEffect(() => {
-    const carregar = () => {
-      api.inventario(true).then(setInventario).catch(() => undefined)
-      api.catalogo().then(setCatalogo).catch(() => undefined)
-    }
-    carregar()
-    api.politicas().then(setPoliticas).catch(() => undefined)
-    const t = setInterval(carregar, INTERVALO_INVENTARIO)
-    return () => clearInterval(t)
-  }, [])
-
-  const cli = useMemo(() => execucoes.filter((e) => e.modo !== 'api'), [execucoes])
-  const estat = useMemo(() => {
-    const m = new Map<Papel, Estatistica>()
-    for (const p of POSTOS_API) m.set(p, porPosto(execucoes, p, agora))
-    m.set('arquivo', porExecucoes(execucoes, agora))
-    m.set('terminais', porExecucoes(cli, agora))
-    return m
-  }, [execucoes, cli, agora])
-
-  const algumProvedor = catalogo ? Object.values(catalogo.provedores).some(Boolean) : false
-  const modeloDo = (s: Setor) => (s.nivel && catalogo?.niveis[s.nivel]?.modelo) || null
-
-  const situacao = (s: Setor): Situacao => {
-    const e = estat.get(s.id)
-    if (s.nivel) {
-      if (catalogo && !algumProvedor && !e?.total) return 'fora'
-      return e?.ativo ? 'trabalhando' : 'ocioso'
-    }
-    if (s.id === 'terminais') {
-      const algumaCli = inventario ? Object.values(inventario.agents).some((a) => a.available) : true
-      if (!algumaCli) return 'fora'
-      return e?.ativo ? 'trabalhando' : 'ocioso'
-    }
-    if (s.id === 'arquivo') return e?.ativo ? 'trabalhando' : 'presente'
-    return 'presente'
-  }
-
-  const rodape = (s: Setor): string | undefined => {
-    if (s.id === 'terminais' && inventario) {
-      return Object.entries(inventario.agents)
-        .map(([k, v]) => `${k} ${v.available ? (v.version ? `v${v.version}` : 'ok') : 'ausente'}`).join(' · ')
-    }
-    if (s.nivel && catalogo && !algumProvedor) return 'sem chave de API: use --simulado'
-    return undefined
-  }
-
-  const custoTotal = execucoes.reduce((t, e) => t + (e.custo_usd ?? 0), 0)
-  const falhas = execucoes.filter((e) => !sucesso(e)).length
-  const semPreco = execucoes.some((e) => e.etapas?.some((x) => x.custo_usd === null))
 
   return (
-    <div className="escritorio" onClick={() => setSelecionado(null)}>
+    <div className="escritorio">
       <header className="topo">
         <div className="titulo">
-          <h1>ESCRITÓRIO DO ORQUESTRADOR</h1>
-          <span className="subtitulo">equipe por API (Agno) + terminais por assinatura · somente leitura · 127.0.0.1</span>
+          <h1>ORQUESTRADOR DE AGENTES</h1>
+          <span className="subtitulo">equipe por API (Agno) + terminais por assinatura · 127.0.0.1</span>
         </div>
-        <div className="totais">
-          <span>execuções <b>{execucoes.length}</b></span>
-          <span>falhas <b className={falhas ? 'erro' : ''}>{falhas}</b></span>
-          <span>custo <b>{formatarCusto(custoTotal, semPreco)}</b></span>
-          <span>provedores <b>{catalogo ? Object.entries(catalogo.provedores).filter(([, v]) => v).map(([k]) => k).join(', ') || 'nenhum' : '…'}</b></span>
-          <span className={erro ? 'erro' : 'ok'}>{erro ? `API: ${erro}` : 'API ok'}</span>
-        </div>
+        <nav className="abas">
+          {ABAS.map((a) => (
+            <button key={a.id} className={aba === a.id ? 'ativo' : ''} onClick={() => setAba(a.id)}>{a.nome}</button>
+          ))}
+        </nav>
       </header>
 
-      <main className="andar">
-        {SETORES.map((s) => (
-          <Sala
-            key={s.id}
-            setor={s}
-            situacao={situacao(s)}
-            estat={estat.get(s.id)}
-            modelo={modeloDo(s)}
-            rodape={rodape(s)}
-            selecionado={selecionado === s.id}
-            aoSelecionar={() => setSelecionado((atual) => (atual === s.id ? null : s.id))}
-          >
-            {s.id === 'portaria' && <Portaria execucoes={execucoes} />}
-            {s.id === 'terminais' && <Direcao politicas={politicas} />}
-            {selecionado === s.id && <p className="descricao">{s.descricao}</p>}
-          </Sala>
-        ))}
-      </main>
-
-      <Historico execucoes={execucoes} posto={selecionado} />
+      {!temToken() ? (
+        <section className="cartao">
+          <h2>Painel sem token</h2>
+          <p>Abra o endereço completo exibido no terminal pelo comando abaixo (ele termina com <code>#token=...</code>).</p>
+          <pre className="log">.venv/bin/python -m orchestrator serve</pre>
+        </section>
+      ) : (
+        <>
+          {aba === 'nova' && <NovaTarefa ambiente={ambiente} aoIniciar={(id) => { setJobInicial(id); setAba('execucoes') }} />}
+          {aba === 'execucoes' && <Execucoes historico={historico} selecionadoInicial={jobInicial} />}
+          {aba === 'escritorio' && <Escritorio execucoes={historico} erro={erro} aoAbrirExecucoes={() => setAba('execucoes')} />}
+          {aba === 'configuracoes' && <Configuracoes />}
+          {aba === 'ajuda' && <ComoUsar />}
+        </>
+      )}
 
       <footer className="rodape">
-        Dados de <code>~/.local/state/orquestrador-cli-local/</code>. O painel não executa nada: use a CLI com <code>--approve</code>.
-        Personagens originais criados para este projeto.
+        Dados em <code>~/.local/state/orquestrador-cli-local/</code>. Nada executa sem a sua confirmação. Personagens originais criados para este projeto.
       </footer>
     </div>
   )

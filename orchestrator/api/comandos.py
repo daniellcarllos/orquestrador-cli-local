@@ -29,6 +29,8 @@ def registrar_parser(commands) -> None:
                        help="Aprova de antemão uma ação com efeito externo")
         p.add_argument("--approve", action="store_true", help="Autoriza as chamadas aos modelos e o gasto")
         p.add_argument("--json", action="store_true", help="Imprime o resultado em JSON")
+        p.add_argument("--so-plano", action="store_true", help="Só imprime o plano (JSON) e sai, sem custo")
+        p.add_argument("--resumo-arquivo", type=Path, help=argparse.SUPPRESS)  # usado pelo painel
 
     p = commands.add_parser("analisar", help="Análise de código por área, em paralelo, com consolidação")
     p.add_argument("pergunta")
@@ -148,6 +150,9 @@ def _fluxo(base, args) -> int:
     catalogo = modelos.carregar(args.catalogo)
     pedidos = acoes.interpretar(args.ao_finalizar)
     plano = _plano(args, catalogo)
+    if args.so_plano:
+        print(json.dumps(plano, ensure_ascii=False, indent=2))
+        return 0
     print(json.dumps(plano, ensure_ascii=False, indent=2), file=sys.stderr, flush=True)
     if not args.approve:
         print("Execução não iniciada: use --approve após revisar papéis, modelos e teto.", file=sys.stderr)
@@ -170,6 +175,8 @@ def _fluxo(base, args) -> int:
     execucao = registro.Execucao(args.action, resumo_tarefa if not args.simulado else f"[simulado] {resumo_tarefa}")
     ctx = agentes.Contexto(catalogo, orcamento, execucao, repo, ModeloSimulado() if args.simulado else None,
                            args.nivel_forcado)
+    execucao.progresso_ativo = True
+    _resumo(args, {"execucao": execucao.id, "status": "executando"})
 
     status, texto, estruturado = "ok", "", None
     try:
@@ -212,11 +219,19 @@ def _fluxo(base, args) -> int:
         execucao.acoes = acoes.executar(pedidos, texto, set(args.aprovar_acoes))
     meta = execucao.finalizar(status, orcamento.resumo())
 
+    _resumo(args, {"execucao": execucao.id, "status": status, "custo_usd": meta.get("custo_usd"),
+                   "tokens": meta.get("tokens"), "acoes": execucao.acoes})
     print(texto)
     resumo = {"execucao": execucao.id, "status": status, "pasta": str(execucao.pasta), **orcamento.resumo(),
               "etapas": len(execucao.etapas), "acoes": execucao.acoes}
     print(json.dumps(meta if args.json else resumo, ensure_ascii=False, indent=2), file=sys.stderr)
     return 0 if status == "ok" else 1
+
+
+def _resumo(args, dados: dict) -> None:
+    """Arquivo lido pelo painel para acompanhar a execução (só metadados)."""
+    if getattr(args, "resumo_arquivo", None):
+        args.resumo_arquivo.write_text(json.dumps(dados, ensure_ascii=False), encoding="utf-8")
 
 
 def _obter_diff(args, repo) -> str:

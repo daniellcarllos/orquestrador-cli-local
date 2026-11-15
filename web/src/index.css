@@ -159,3 +159,98 @@ tr.clicavel:hover td { background: rgba(242, 193, 78, 0.06); }
   background: var(--painel); box-shadow: inset 4px 0 0 var(--cor, var(--painel-claro));
 }
 .linha-tempo li.etapa-falha { box-shadow: inset 4px 0 0 var(--erro); }
+
+/* ---------- navegação e telas ---------- */
+.abas { display: flex; gap: 6px; flex-wrap: wrap; }
+.abas button, .botao, .chip {
+  font-family: inherit; font-size: 8px; padding: 8px 10px; cursor: pointer; border: 0;
+  background: var(--borda); color: var(--apagado); outline: 2px solid var(--painel-claro);
+}
+.abas button.ativo { color: #fff; outline-color: var(--amarelo); }
+.botao { background: var(--amarelo); color: var(--borda); outline-color: var(--borda); }
+.botao:hover:not(:disabled) { transform: translate(-1px, -1px); }
+.botao:disabled { opacity: 0.4; cursor: not-allowed; }
+.botao.secundario { background: var(--borda); color: var(--texto); outline-color: var(--painel-claro); }
+.botao.perigo { background: var(--erro); color: #fff; }
+.chip { font-size: 7px; padding: 4px 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tela { display: grid; gap: 16px; }
+.cartao {
+  background: var(--painel); padding: 14px 16px; display: grid; gap: 10px;
+  box-shadow: 0 0 0 4px var(--borda), 0 0 0 6px var(--painel-claro);
+}
+.cartao h2 { font-size: 11px; margin: 0; color: var(--amarelo); text-shadow: 2px 2px 0 var(--borda); }
+.cartao h3 { font-size: 9px; margin: 6px 0 0; color: var(--texto); }
+.linha { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.linha.entre { justify-content: space-between; align-items: center; }
+.cresce { flex: 1; min-width: 260px; }
+.curto { max-width: 280px; }
+.grade-2, .grade-3, .grade-4 { display: grid; gap: 10px; }
+.grade-2 { grid-template-columns: repeat(2, 1fr); }
+.grade-3 { grid-template-columns: repeat(3, 1fr); }
+.grade-4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 800px) { .grade-2, .grade-3, .grade-4 { grid-template-columns: 1fr; } }
+.campo textarea { font-family: inherit; font-size: 9px; color: var(--texto); background: var(--borda); border: 0; padding: 8px; outline: 2px solid var(--painel-claro); resize: vertical; line-height: 1.7; }
+.campo textarea:focus { outline-color: var(--amarelo); }
+.campo.check { grid-template-columns: auto 1fr; align-items: center; font-size: 8px; color: var(--texto); }
+.campo.check input { width: 14px; height: 14px; accent-color: var(--amarelo); }
+table input, table select { font-family: inherit; font-size: 8px; color: var(--texto); background: var(--borda); border: 0; padding: 6px; outline: 2px solid var(--painel-claro); width: 100%; }
+details summary { cursor: pointer; font-size: 8px; color: var(--apagado); margin: 4px 0; }
+.aviso { font-size: 8px; padding: 8px; background: rgba(242, 193, 78, 0.12); color: var(--amarelo); margin: 0; line-height: 1.7; }
+.info-repo { margin: 0; }
+.faixa { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; font-size: 9px; padding: 10px 14px; background: var(--painel); box-shadow: 0 0 0 4px var(--borda); }
+
+/* fluxos */
+.fluxos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+@media (max-width: 1000px) { .fluxos { grid-template-columns: repeat(2, 1fr); } }
+.fluxo {
+  font-family: inherit; text-align: left; display: grid; gap: 6px; justify-items: start; padding: 10px; cursor: pointer;
+  background: var(--borda); color: var(--texto); border: 0; outline: 2px solid var(--painel-claro); line-height: 1.6;
+}
+.fluxo.ativo { outline: 3px solid var(--cor); background: var(--painel-claro); }
+.fluxo-nome { font-size: 9px; color: var(--cor); }
+
+/* ações */
+.acoes { display: grid; gap: 8px; }
+.acao { padding: 8px; background: var(--borda); display: grid; gap: 8px; }
+.acao.ativa { outline: 2px solid var(--amarelo); }
+
+/* plano, modal */
+.plano { background: var(--borda); padding: 10px; font-size: 8px; }
+.plano table { margin-top: 6px; }
+.modal { position: fixed; inset: 0; background: rgba(5, 5, 15, 0.8); display: grid; place-items: center; z-index: 10; padding: 16px; }
+.modal-caixa { background: var(--painel); padding: 18px; max-width: 560px; width: 100%; display: grid; gap: 12px; box-shadow: 0 0 0 4px var(--borda), 0 0 0 8px var(--amarelo); }
+.modal-caixa.larga { max-width: 900px; }
+.modal-caixa h2 { font-size: 11px; margin: 0; color: var(--amarelo); }
+.resumo { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 8px; }
+.resumo li { display: grid; grid-template-columns: 140px 1fr; gap: 8px; word-break: break-all; }
+.resumo span { color: var(--apagado); }
+.previa { max-height: 50vh; overflow: auto; background: var(--borda); padding: 10px; }
+
+/* execuções */
+.execucoes { grid-template-columns: 320px 1fr; align-items: start; }
+@media (max-width: 900px) { .execucoes { grid-template-columns: 1fr; } }
+.lista-execucoes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.lista-execucoes li { display: grid; gap: 4px; padding: 8px; background: var(--borda); cursor: pointer; font-size: 8px; }
+.lista-execucoes li.ativo { outline: 2px solid var(--amarelo); }
+.lista-execucoes .placa { justify-self: start; }
+.detalhe { display: grid; gap: 16px; }
+.log { font-family: 'Courier New', monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word; background: var(--borda); padding: 10px; margin: 0; max-height: 40vh; overflow: auto; color: var(--texto); }
+.linha-tempo li.etapa-andando { box-shadow: inset 4px 0 0 var(--amarelo); animation: piscar 1s steps(2) infinite; }
+.placa-fora { color: var(--erro); }
+
+/* markdown */
+.markdown { font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6; }
+.markdown h3, .markdown h4, .markdown h5 { font-family: var(--fonte); color: var(--amarelo); font-size: 10px; margin: 14px 0 6px; }
+.markdown p { margin: 6px 0; }
+.markdown ul { margin: 4px 0; padding-left: 20px; }
+.markdown li.sub { list-style: circle; margin-left: 18px; color: var(--apagado); }
+.markdown code { font-family: inherit; }
+.markdown pre { background: var(--borda); padding: 8px; overflow: auto; }
+
+/* configurações e ajuda */
+.provedores, .favoritos, .passos { margin: 0; padding: 0; display: grid; gap: 6px; font-size: 8px; line-height: 1.8; }
+.provedores, .favoritos { list-style: none; }
+.provedores li { display: grid; grid-template-columns: 110px 150px 1fr; gap: 8px; padding: 6px 8px; background: var(--borda); }
+.favoritos li { display: flex; justify-content: space-between; gap: 8px; align-items: center; padding: 6px 8px; background: var(--borda); word-break: break-all; }
+.passos { padding-left: 18px; }
