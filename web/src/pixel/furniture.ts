@@ -74,47 +74,6 @@ export const ESTANTE: Sprite = [
   '.kk......kk.',
 ]
 
-export const MARTELO: Sprite = [
-  '.kkkkkk.',
-  'kEEEEEEk',
-  'kEeeeeEk',
-  'kEEEEEEk',
-  '.kkkkkk.',
-  '...kk...',
-  '...mm...',
-  '...mm...',
-  '...mm...',
-  '...kk...',
-]
-
-export const ESCUDO: Sprite = [
-  '...kkkk...',
-  '.kkrrrrkk.',
-  'krrwwwwrrk',
-  'krwwbbwwrk',
-  'kwwbbbbwwk',
-  'kwwbbbbwwk',
-  'krwwbbwwrk',
-  'krrwwwwrrk',
-  '.kkrrrrkk.',
-  '...kkkk...',
-]
-
-export const PORTAL: Sprite = [
-  '...oooooo...',
-  '..oy....yo..',
-  '.o........o.',
-  'oy........yo',
-  'o..........o',
-  'o..........o',
-  'o..........o',
-  'o..........o',
-  'oy........yo',
-  '.o........o.',
-  '..oy....yo..',
-  '...oooooo...',
-]
-
 export const ARQUIVO: Sprite = [
   'kkkkkkkkkk',
   'kEEEEEEEEk',
@@ -153,10 +112,65 @@ export const BIGORNA: Sprite = [
   '..kkkkkkkk..',
 ]
 
-export const ESCRIVANINHA_FURY: Sprite = [
+export const ESCRIVANINHA: Sprite = [
   'kkkkkkkkkkkkkkkkkk',
   'knnnnnnnnnnnnnnnnk',
   'kkmmmmmmmmmmmmmmkk',
   '.kn....ywy.....nk.',
   '.kn............nk.',
+]
+
+export const CATRACA: Sprite = [
+  '.kkkkkkkk.',
+  'kEEEEEEEEk',
+  'kEgEEEErEk',
+  'kEEEEEEEEk',
+  '.kkkkkkkk.',
+  '..kE..Ek..',
+  '..kE..Ek..',
+  '..kE..Ek..',
+  '.kkkk.kkkk',
+]
+
+export const QUADRO: Sprite = [
+  'kkkkkkkkkkkk',
+  'kwwwwwwwwwwk',
+  'kwbbwwrrwwwk',
+  'kwwwbwwwgwwk',
+  'kwbwwwwrrrwk',
+  'kwwwwbbwwwwk',
+  'kkkkkkkkkkkk',
+  '.....kk.....',
+  '....kkkk....',
+]
+
+export const MAPA: Sprite = [
+  'kkkkkkkkkkkk',
+  'kyyyyyyyyyyk',
+  'kyttyyyybbyk',
+  'kyttttyybbyk',
+  'kyyyttyyyyyk',
+  'kyyyyrryyyyk',
+  'kyyyyrryttyk',
+  'kyyyyyyyttyk',
+  'kkkkkkkkkkkk',
+]
+
+export const BANDEJA: Sprite = [
+  '..wwwwwww.',
+  '.wwwwwwww.',
+  'kkkkkkkkkk',
+  'kmmmmmmmmk',
+  'kkkkkkkkkk',
+]
+
+export const LUPA: Sprite = [
+  '..kkkk..',
+  '.kcccck.',
+  'kccwcck.',
+  'kccccck.',
+  '.kcccck.',
+  '..kkkkmm',
+  '......mm',
+  '.......m',
 ]

@@ -11,21 +11,25 @@ python3 -m orchestrator serve            # http://127.0.0.1:8765  (--port para t
 
 Em desenvolvimento, `npm run dev` em `web/` sobe o Vite com proxy de `/api` para o `serve` na porta 8765.
 
-## Setores e personagens
+## Postos e personagens
 
-| Setor | Personagem | O que representa | O que mostra |
-|---|---|---|---|
-| Portaria | Capitão América | Portões de aprovação (`--approve`, `--approve-mcp`, `--approve-sha256`) | Quantas execuções e preparações foram liberadas |
-| Direção | Nick Fury | Classificação e roteamento | Console: digite uma tarefa, escolha uma política e veja o agente/modelo escolhido, nível e risco. Não executa nada |
-| Arquivo | Viúva Negra | Histórico (`history.jsonl`) | Totais gerais, taxa de sucesso, última execução |
-| Setor Codex | Homem de Ferro | Codex CLI | Execuções, OK/falhas, duração média, última, modelo mais usado, versão da CLI |
-| Setor Claude | Doutor Estranho | Claude Code | Idem |
-| Setor Gemini | Thor | Gemini CLI | Idem |
-| Oficina de patches | Hulk | `prepare` / `apply` | Preparações de patch registradas |
+Todos os personagens e objetos são originais, desenhados para este projeto (`web/src/pixel/personagens.ts`).
 
-Estados de cada sala: **TRABALHANDO** (execução nos últimos 10 minutos), **OCIOSO**, **AUSENTE** (CLI não encontrada no PATH) e **EM SERVIÇO** (setores sem agente). Clicar numa sala filtra o registro de execuções por aquele agente e mostra a descrição do setor.
+| Posto | Personagem | O que mostra |
+|---|---|---|
+| Portaria | Guarda | Portões de aprovação: execuções liberadas, ações externas, teto de gasto |
+| Coordenação | Coordenadora | Etapas do coordenador e do líder do time (nível forte) |
+| Triagem | Recepcionista | Classificações de tarefa (nível leve) |
+| Planejamento | Arquiteta | Planos de desenvolvimento (nível forte) |
+| Análise | Cartógrafa | Análises por área (nível médio) |
+| Revisão | Inspetora | Revisores de segurança, bugs e qualidade (nível médio) |
+| Oficina | Engenheiro | Implementações em cópia isolada (nível médio) |
+| Arquivo | Arquivista | Totais de todas as execuções, com tokens e custo |
+| Sala dos terminais | Operadora de terminais | Execuções das CLIs por assinatura e console de roteamento |
 
-O registro no rodapé lista cada execução: data, ação (`run` ou `prepare`), agente, modelo, versão da política, duração, status (OK, ERRO n, TEMPO ESGOTADO) e id. Filtros: todos, run, prepare, falhas. Atualiza a cada 5 segundos.
+Cada posto da equipe de API mostra o nível e o modelo do catálogo, chamadas, sucesso, tokens, custo, duração média e o modelo mais usado. Estados: **TRABALHANDO** (atividade nos últimos 10 minutos), **OCIOSO**, **FORA DO AR** (sem chave de API e sem histórico, ou nenhuma CLI instalada) e **EM SERVIÇO**.
+
+Clicar num posto filtra o registro pelas execuções que passaram por ele. No registro, execuções por API abrem uma linha do tempo com cada etapa: personagem, papel, rodada, nível, modelo, tokens de entrada e saída, custo, duração e status.
 
 ## API local (GET, JSON)
 
@@ -34,10 +38,8 @@ O registro no rodapé lista cada execução: data, ação (`run` ou `prepare`), 
 | `/api/history` | Últimas 500 entradas do histórico, mais recentes primeiro; linhas inválidas são ignoradas |
 | `/api/doctor?probe=1` | Inventário das CLIs; com `probe=1` consulta `--version` e `--help` (cache de 5 minutos) |
 | `/api/policies` | Nomes dos arquivos em `examples/policies/` |
+| `/api/catalogo` | Níveis e modelos do catálogo de API e quais provedores têm chave (só sim ou não) |
 | `/api/plan?task=...&policy=...` | Classificação e roteamento sem efeitos; a política só pode ser uma das listadas |
 
 Arquivos estáticos vêm de `web/dist`; rotas desconhecidas caem no `index.html` e nunca saem dessa pasta. O servidor recusa escutar fora de localhost.
 
-## Personagens
-
-Sprites originais de 12x16 pixels desenhados para este projeto (`web/src/pixel/heroes.ts`), inspirados nos heróis da Marvel no estilo dos jogos de Super Nintendo. Os nomes dos heróis e da Marvel são marcas de seus donos; o painel é de uso pessoal e não comercial.

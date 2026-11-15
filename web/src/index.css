@@ -54,8 +54,7 @@ b, strong { color: #fff; }
 .andar {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
 }
-.andar .sala:nth-child(7) { grid-column: 1 / -1; }
-@media (max-width: 900px) { .andar { grid-template-columns: 1fr 1fr; } .andar .sala:nth-child(7) { grid-column: auto; } }
+@media (max-width: 900px) { .andar { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 600px) { .andar { grid-template-columns: 1fr; } }
 
 .sala {
@@ -148,3 +147,15 @@ tr.linha-falha td { background: rgba(215, 38, 61, 0.08); }
 .portoes li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 7px; padding: 6px 8px; background: var(--borda); }
 .portoes span { color: var(--apagado); }
 .portoes b { font-size: 9px; }
+
+/* ---------- placar largo, linha do tempo ---------- */
+.placar .largo { grid-column: 1 / -1; }
+tr.clicavel { cursor: pointer; }
+tr.clicavel:hover td { background: rgba(242, 193, 78, 0.06); }
+.linha-tempo-linha td { background: var(--borda); }
+.linha-tempo { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.linha-tempo li {
+  display: flex; gap: 8px; align-items: flex-start; padding: 8px; min-width: 210px; font-size: 7px; line-height: 1.7;
+  background: var(--painel); box-shadow: inset 4px 0 0 var(--cor, var(--painel-claro));
+}
+.linha-tempo li.etapa-falha { box-shadow: inset 4px 0 0 var(--erro); }

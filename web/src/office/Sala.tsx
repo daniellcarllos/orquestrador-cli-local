@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react'
 import { Sprite } from '../pixel/Sprite'
 import { MONITOR, MONITOR_ATIVO } from '../pixel/furniture'
 import type { Setor } from './setores'
-import type { Capacidade } from '../types'
-import { formatarDuracao, relativo, type Estatistica } from './estatisticas'
+import { formatarCusto, formatarDuracao, formatarTokens, relativo, type Estatistica } from './estatisticas'
 
-export type Situacao = 'trabalhando' | 'ocioso' | 'ausente' | 'presente'
+export type Situacao = 'trabalhando' | 'ocioso' | 'fora' | 'presente'
 
 interface Props {
   setor: Setor
   situacao: Situacao
   estat?: Estatistica
-  capacidade?: Capacidade
+  modelo?: string | null
+  rodape?: string
   selecionado: boolean
   aoSelecionar: () => void
   children?: React.ReactNode
@@ -20,25 +20,24 @@ interface Props {
 const ROTULO: Record<Situacao, string> = {
   trabalhando: 'TRABALHANDO',
   ocioso: 'OCIOSO',
-  ausente: 'AUSENTE',
+  fora: 'FORA DO AR',
   presente: 'EM SERVIÇO',
 }
 
-export function Sala({ setor, situacao, estat, capacidade, selecionado, aoSelecionar, children }: Props) {
+export function Sala({ setor, situacao, estat, modelo, rodape, selecionado, aoSelecionar, children }: Props) {
   const [quadro, setQuadro] = useState(0)
   useEffect(() => {
-    const ritmo = situacao === 'trabalhando' ? 350 : 900
+    // pisca rápido quando trabalha; devagar quando ocioso
+    const ritmo = situacao === 'trabalhando' ? 700 : 2200
     const t = setInterval(() => setQuadro((q) => (q + 1) % 2), ritmo)
     return () => clearInterval(t)
   }, [situacao])
-
-  const sprite = setor.sprite[situacao === 'ausente' ? 0 : quadro]
 
   return (
     <section
       className={`sala sala-${situacao} ${selecionado ? 'sala-selecionada' : ''}`}
       style={{ ['--cor' as string]: setor.cor }}
-      onClick={aoSelecionar}
+      onClick={(e) => { e.stopPropagation(); aoSelecionar() }}
       aria-label={setor.nome}
     >
       <header className="sala-cabecalho">
@@ -49,35 +48,34 @@ export function Sala({ setor, situacao, estat, capacidade, selecionado, aoSeleci
       <div className="sala-piso">
         <div className="sala-parede" />
         <div className="sala-mobilia">
-          {setor.mobilia.map((m, i) => {
-            const grade = m === MONITOR && situacao === 'trabalhando' ? MONITOR_ATIVO : m
-            return <Sprite key={i} grade={grade} escala={3} className="movel" />
-          })}
+          {setor.mobilia.map((m, i) => (
+            <Sprite key={i} grade={m === MONITOR && situacao === 'trabalhando' ? MONITOR_ATIVO : m} escala={3} className="movel" />
+          ))}
         </div>
-        <div className={`personagem ${situacao === 'ausente' ? 'personagem-ausente' : ''}`}>
-          <Sprite grade={sprite} escala={4} titulo={setor.heroi} />
-          <span className="cracha">{setor.heroi}</span>
+        <div className={`personagem ${situacao === 'fora' ? 'personagem-ausente' : ''}`}>
+          <Sprite grade={setor.sprite[situacao === 'fora' ? 0 : quadro]} escala={4} titulo={setor.personagem.nome} />
+          <span className="cracha">{setor.personagem.nome}</span>
         </div>
       </div>
 
       <footer className="sala-rodape">
-        <div className="codinome">{setor.codinome}</div>
+        {setor.nivel && (
+          <div className="codinome">
+            nível {setor.nivel}{modelo ? ` · ${modelo}` : ''}
+          </div>
+        )}
+        {rodape && <div className="codinome">{rodape}</div>}
         {estat && (
           <dl className="placar">
-            <div><dt>Execuções</dt><dd>{estat.total}</dd></div>
+            <div><dt>Chamadas</dt><dd>{estat.total}</dd></div>
             <div><dt>OK</dt><dd className="ok">{estat.ok}</dd></div>
             <div><dt>Falhas</dt><dd className={estat.falhas ? 'erro' : ''}>{estat.falhas}</dd></div>
+            <div><dt>Tokens</dt><dd>{formatarTokens(estat.tokens)}</dd></div>
+            <div><dt>Custo</dt><dd>{estat.total ? formatarCusto(estat.custoUsd, estat.semPreco) : '–'}</dd></div>
             <div><dt>Média</dt><dd>{estat.total ? formatarDuracao(estat.duracaoMediaMs) : '–'}</dd></div>
-            <div><dt>Última</dt><dd>{estat.ultima ? relativo(estat.ultima) : 'nunca'}</dd></div>
-            <div><dt>Modelo</dt><dd>{estat.modeloFrequente ?? 'padrão'}</dd></div>
+            <div><dt>Última</dt><dd>{relativo(estat.ultimaEm)}</dd></div>
+            <div className="largo"><dt>Modelo mais usado</dt><dd>{estat.modeloFrequente ?? '–'}</dd></div>
           </dl>
-        )}
-        {capacidade && (
-          <div className="capacidade">
-            {capacidade.available ? `v${capacidade.version ?? '?'}` : 'não instalado'}
-            {capacidade.available && capacidade.model_flag && ' · --model'}
-            {capacidade.available && capacidade.sandbox_flag && ' · sandbox'}
-          </div>
         )}
         {children}
       </footer>

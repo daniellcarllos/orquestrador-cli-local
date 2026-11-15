@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import type { Plano } from '../types'
-import { SETOR_POR_AGENTE } from '../office/setores'
 
 /** Console da Direção: classifica uma tarefa sem executar nada. */
 export function Direcao({ politicas }: { politicas: string[] }) {
@@ -28,7 +27,7 @@ export function Direcao({ politicas }: { politicas: string[] }) {
     return () => clearTimeout(t)
   }, [tarefa, politica])
 
-  const setor = plano ? SETOR_POR_AGENTE[plano.agent] : null
+  const NOMES: Record<string, string> = { codex: 'Codex', claude: 'Claude Code', gemini: 'Gemini CLI' }
 
   return (
     <div className="direcao" onClick={(e) => e.stopPropagation()}>
@@ -48,7 +47,7 @@ export function Direcao({ politicas }: { politicas: string[] }) {
         {erro && <span className="erro">{erro}</span>}
         {plano && !carregando && (
           <>
-            <div>&gt;&gt; <strong style={{ color: setor?.cor }}>{setor?.heroi}</strong> ({plano.agent}{plano.model ? ` / ${plano.model}` : ''})</div>
+            <div>&gt;&gt; <strong>{NOMES[plano.agent] ?? plano.agent}</strong>{plano.model ? ` / ${plano.model}` : ''}</div>
             <div>nível <b>{plano.complexity}</b> · risco <b className={plano.risk === 'alto' ? 'erro' : ''}>{plano.risk}</b> · tipo <b>{plano.task_type}</b></div>
             <div className="miudo">{plano.rationale}</div>
           </>

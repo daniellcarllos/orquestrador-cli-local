@@ -1,4 +1,4 @@
-import type { Execucao, Inventario, Plano } from './types'
+import type { Catalogo, Execucao, Inventario, Plano } from './types'
 
 async function get<T>(url: string): Promise<T> {
   const r = await fetch(url, { headers: { Accept: 'application/json' } })
@@ -10,6 +10,7 @@ async function get<T>(url: string): Promise<T> {
 export const api = {
   historico: () => get<{ entries: Execucao[] }>('/api/history').then((d) => d.entries),
   inventario: (probe = true) => get<Inventario>(`/api/doctor?probe=${probe ? 1 : 0}`),
+  catalogo: () => get<Catalogo>('/api/catalogo'),
   politicas: () => get<{ policies: string[] }>('/api/policies').then((d) => d.policies),
   plano: (task: string, policy?: string) => {
     const q = new URLSearchParams({ task })
