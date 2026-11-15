@@ -187,3 +187,35 @@ def build_review_task(task: str, diff: str, docs: list[dict]) -> str:
         "Não reproduza segredos ou dados pessoais.\n" +
         json.dumps({"tarefa": task, "diff_nao_confiavel": diff, "documentos_mcp": docs}, ensure_ascii=False)
     )
+
+
+async def _save(url: str, token: str, arguments: dict) -> str:
+    try:
+        import httpx2
+        from mcp import Client
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError as exc:
+        raise MCPPromptError("Integração MCP opcional indisponível: instale a dependência mcp do projeto em ambiente autorizado.") from exc
+    async with httpx2.AsyncClient(headers={"Authorization": "Bearer " + token}, timeout=20, follow_redirects=False) as http:
+        async with Client(streamable_http_client(url, http_client=http), raise_exceptions=True) as client:
+            result = await client.call_tool("salvar_prompt", arguments, read_timeout_seconds=20)
+            data = parse_object(result)
+            if not isinstance(data.get("id"), str) or not re.fullmatch(r"[a-f0-9]{10}", data["id"]):
+                raise MCPPromptError("Resposta MCP sem id válido.")
+            return data["id"]
+
+
+def save(title: str, content: str, project: str, kind: str = "documentacao", tags: list[str] | None = None) -> str:
+    """Grava um item na biblioteca (exige chave com escrita no projeto). Devolve o id criado."""
+    url = os.environ.get("MCP_PROMPTS_URL", "")
+    token = os.environ.get("MCP_PROMPTS_TOKEN", "")
+    validate_settings(url, token, [], project, "-", allow_empty=True)
+    if not title.strip() or len(title) > 200 or not content.strip() or len(content.encode("utf-8")) > MAX_TEXT:
+        raise ValueError("Título ou conteúdo inválido para a biblioteca.")
+    arguments = {"titulo": title, "conteudo": content, "projeto": project, "tipo": kind, "tags": (tags or [])[:20]}
+    try:
+        return asyncio.run(asyncio.wait_for(_save(url, token, arguments), timeout=60))
+    except MCPPromptError:
+        raise
+    except Exception as exc:
+        raise ValueError("Não foi possível gravar no MCP. Verifique conexão, autenticação e permissões.") from exc

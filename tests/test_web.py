@@ -78,6 +78,14 @@ class WebTests(unittest.TestCase):
             urllib.request.urlopen(req)
         self.assertEqual(ctx.exception.code, 501)
 
+    def test_catalogo_sem_expor_chaves(self):
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-segredo-que-nao-pode-vazar"}):
+            status, data = self.get("/api/catalogo")
+        self.assertEqual(status, 200)
+        self.assertTrue(data["provedores"]["anthropic"])
+        self.assertIn("forte", data["niveis"])
+        self.assertNotIn("segredo", json.dumps(data))
+
     def test_server_only_binds_localhost(self):
         with self.assertRaises(ValueError):
             web.make_server(host="0.0.0.0", port=0)

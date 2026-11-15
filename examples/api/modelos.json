@@ -1,0 +1,18 @@
+{
+  "versao": "modelos-1",
+  "niveis": {
+    "leve":  { "provedor": "anthropic", "modelo": "claude-haiku-5-5" },
+    "medio": { "provedor": "anthropic", "modelo": "claude-sonnet-5-5" },
+    "forte": { "provedor": "anthropic", "modelo": "claude-opus-5-5" }
+  },
+  "alternativos": {
+    "leve":  [],
+    "medio": [],
+    "forte": []
+  },
+  "precos_por_milhao": {
+    "claude-haiku-5-5":  { "entrada": null, "saida": null },
+    "claude-sonnet-5-5": { "entrada": null, "saida": null },
+    "claude-opus-5-5":   { "entrada": null, "saida": null }
+  }
+}

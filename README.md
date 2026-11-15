@@ -1,8 +1,11 @@
 # Orquestrador CLI local
 
-Protótipo Python de orquestração **single**: recebe uma tarefa, classifica, escolhe **uma** CLI de agente já instalada e autenticada pelo usuário (Codex, Claude Code ou Gemini CLI) e a executa com aprovação explícita. Opcionalmente busca prompts e contextos na biblioteca MCP (`mcp-prompts`) para montar revisões de código.
+Orquestrador de agentes de IA com dois modos:
 
-Sem chaves de API, sem dependências de runtime (biblioteca padrão do Python 3.10+), sem serviço web e sem modo team.
+- **Por API (Agno):** uma equipe de agentes especialistas (triagem, análise, revisão, planejamento, implementação, coordenação), cada um com o modelo do nível certo, trabalhando em paralelo em code review, análise de código e desenvolvimento. Mede tokens e custo, respeita um teto de gasto e executa ações ao terminar, como comentar na PR. Veja [docs/api.md](docs/api.md).
+- **Por CLI:** uma CLI já autenticada pelo usuário (Codex, Claude Code ou Gemini CLI), sem chave de API e sem dependências de runtime.
+
+Nos dois modos, nada executa sem aprovação explícita. Opcionalmente, os agentes usam prompts e contextos da biblioteca MCP (`mcp-prompts`).
 
 ## Início rápido
 
@@ -32,6 +35,8 @@ python3 -m unittest discover -s tests -v
 | `mcp-list` | Lista metadados da biblioteca MCP por projeto, grupo e tag | Leitura remota; exige `--approve-mcp` |
 | `history` | Mostra o histórico local de execuções (só metadados) | Nenhum |
 | `serve` | Painel web local (escritório em pixel art) sobre o histórico e o inventário | Só leitura; escuta em 127.0.0.1 |
+| `revisar`, `analisar`, `desenvolver`, `equipe` | Fluxos da equipe por API (extra `[api]`) | Consomem tokens; exigem `--approve`; teto de gasto |
+| `custos`, `comparar`, `acao`, `api-doctor`, `limpar` | Gasto, comparação, ações sobre resultados, diagnóstico | Ações externas pedem aprovação |
 
 ## Estrutura do projeto
 
@@ -43,15 +48,17 @@ orchestrator/
   changes.py        cópia temporária, exportação e aplicação de patches
   mcp_prompts.py    leitura explícita e somente de leitura da biblioteca MCP
   web.py            servidor local do painel (API de leitura + arquivos de web/dist)
+  api/              orquestração por API: catálogo, custos, ferramentas, agentes, fluxos, equipe, ações
 web/                front React do painel: escritório 16 bits com um setor por agente
 tests/              testes unitários (unittest, sem invocar CLIs reais)
-examples/policies/  políticas de roteamento de exemplo
+examples/policies/  políticas de roteamento de exemplo (modo CLI)
+examples/api/       catálogo de modelos por nível (modo API)
 docs/               documentação detalhada
 ```
 
 ## Painel web: como roda
 
-O painel é um escritório em pixel art (16 bits) com uma sala por setor: Portaria (aprovações), Direção (roteamento), Arquivo (histórico), um setor por agente (Codex, Claude, Gemini) e a Oficina de patches. Cada sala mostra o estado do agente, seu placar de execuções e um personagem animado.
+O painel é um escritório em pixel art (16 bits) com um posto por papel da equipe (Coordenação, Triagem, Planejamento, Análise, Revisão, Oficina), mais Portaria, Arquivo e a Sala dos terminais para o modo CLI. Cada posto mostra o modelo em uso, chamadas, tokens, custo e um personagem original animado.
 
 Ele roda em duas partes, ambas locais:
 
@@ -78,8 +85,10 @@ Para desenvolver o front com recarga automática: `cd web && npm run dev` (o Vit
 - [Roteamento e políticas](docs/roteamento.md): classificador, níveis, arquivo de política, exemplo para Claude Code.
 - [Revisão com prompts do MCP](docs/mcp.md): variáveis `MCP_PROMPTS_URL` e `MCP_PROMPTS_TOKEN`, seleção por ID e por tag, limites.
 - [Limites de segurança](docs/seguranca.md): modos de execução, isolamento, patches, histórico.
+- [Orquestração por API](docs/api.md): instalação, catálogo de modelos, fluxos, ações e custos.
 - [Painel web](docs/painel.md): o escritório em pixel art, o que mostra e como rodar.
 - [Evolução](docs/roadmap.md): próximos passos.
+- [Plano v2: orquestração por API com Agno](docs/plano/README.md): objetivos, arquitetura e seis etapas.
 
 ## Integração com o servidor `mcp-prompts`
 

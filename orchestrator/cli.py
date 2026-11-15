@@ -40,6 +40,9 @@ def parser() -> argparse.ArgumentParser:
     commands.add_parser("history", help="Histórico local de metadados, sem prompts ou saídas")
     serve = commands.add_parser("serve", help="Painel web local (somente leitura) em 127.0.0.1")
     serve.add_argument("--port", type=int, default=8765)
+    from .api.comandos import registrar_parser
+
+    registrar_parser(commands)
     listing = commands.add_parser("mcp-list", help="Listar metadados MCP por projeto, grupo e tag opcional")
     listing.add_argument("--project", required=True)
     listing.add_argument("--group", required=True)
@@ -82,6 +85,12 @@ def main(argv=None) -> int:
                           "agents": inventory,
                           "note": "Autenticação, elegibilidade de modelos e consumo de tokens não foram verificados."}, ensure_ascii=False, indent=2))
         return 0
+    from .api.comandos import COMANDOS as COMANDOS_API
+
+    if args.action in COMANDOS_API:
+        from .api import comandos
+
+        return comandos.executar(args)
     if args.action == "serve":
         from . import web
 

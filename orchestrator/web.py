@@ -60,6 +60,17 @@ def inventory(probe: bool) -> dict:
         return {"agents": _probe_cache["data"], "probed": True}
 
 
+def catalogo() -> dict:
+    """Níveis de modelo do catálogo de API e quais provedores têm chave (só sim/não)."""
+    from .api import modelos
+
+    try:
+        c = modelos.carregar()
+    except ValueError:
+        return {"versao": None, "niveis": {}, "provedores": modelos.provedores_configurados()}
+    return {"versao": c["versao"], "niveis": c["niveis"], "provedores": modelos.provedores_configurados()}
+
+
 def policies() -> list[str]:
     return sorted(p.name for p in POLICIES.glob("*.json")) if POLICIES.is_dir() else []
 
@@ -95,6 +106,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"entries": read_history()})
         elif path == "/api/doctor":
             self.send_json(inventory(query.get("probe", ["0"])[0] == "1"))
+        elif path == "/api/catalogo":
+            self.send_json(catalogo())
         elif path == "/api/policies":
             self.send_json({"policies": policies()})
         elif path == "/api/plan":

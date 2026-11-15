@@ -11,6 +11,7 @@ dependencies = []
 
 [project.optional-dependencies]
 mcp = ["mcp>=2.3,<3"]
+api = ["agno>=3.2,<4", "anthropic", "google-genai", "openai", "pydantic>=2", "sqlalchemy[asyncio]", "mcp>=2.3,<3"]
 
 [project.scripts]
 orchestrator = "orchestrator.cli:main"
